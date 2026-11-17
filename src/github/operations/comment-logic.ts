@@ -86,12 +86,18 @@ export function updateCommentBody(input: CommentUpdateInput): string {
     usageFooter,
   } = input;
 
-  // Extract content from the original comment body
-  // First, remove the "Claude Code is working…" or "Claude Code is working..." message
-  // Both wordings are stripped, so a comment created before the rename still updates.
-
-const workingPattern = /(?:Pi|Claude Code) is working[…\.]{1,3}(?:\s*<img[^>]*>)?/i;
-  let bodyContent = originalBody.replace(workingPattern, "").trim();
+  // Strip the working marker, which is what the agent's tracking comment starts
+  // with: the text plus whatever media markup the action renders next to it
+  // (`<img>`, a `<picture>` with light/dark sources, a `<video>`). The markup is
+  // configurable, so match the shape rather than one hard-coded tag.
+  const workingPattern = /(?:Pi|Claude Code) is working[…\.]{1,3}/i;
+  let bodyContent = originalBody.replace(workingPattern, "");
+  bodyContent = bodyContent
+    .replace(
+      /^\s*(?:(?:<picture\b[\s\S]*?<\/picture>)|(?:<video\b[\s\S]*?<\/video>)|(?:<img\b[^>]*>))\s*/i,
+      "",
+    )
+    .trim();
 
   // Check if there's a PR link in the content
   let prLinkFromContent = "";
