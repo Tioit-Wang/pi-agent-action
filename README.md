@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: your-org/pi-agent-action@v1
+      - uses: Tioit-Wang/pi-agent-action@v1
         with:
           provider: deepseek
           model: deepseek-chat
@@ -39,7 +39,7 @@ jobs:
 A read-only triage setup needs no write permissions and no tools:
 
 ```yaml
-      - uses: your-org/pi-agent-action@v1
+      - uses: Tioit-Wang/pi-agent-action@v1
         with:
           provider: deepseek
           model: deepseek-chat
@@ -95,21 +95,21 @@ empty and export the provider's own environment variable or pass `api_key`.
 | Input | Default | Notes |
 | --- | --- | --- |
 | `trigger_phrase` | `@pi` | Phrase looked for in comments and issue bodies |
-| `assignee_trigger` / `label_trigger` | – / `pi` | Alternative triggers |
-| `provider` / `model` / `api_key` / `base_url` / `api_style` | – | Provider selection (see above) |
+| `assignee_trigger` / `label_trigger` | 鈥?/ `pi` | Alternative triggers |
+| `provider` / `model` / `api_key` / `base_url` / `api_style` | 鈥?| Provider selection (see above) |
 | `agent_dir` | `~/.pi/agent` | Sessions, `settings.json`, `models.json` |
-| `pi_args` | – | Extra CLI arguments, e.g. `--thinking high` |
-| `allowed_tools` / `disallowed_tools` | – | Comma-separated Pi tool names |
+| `pi_args` | 鈥?| Extra CLI arguments, e.g. `--thinking high` |
+| `allowed_tools` / `disallowed_tools` | 鈥?| Comma-separated Pi tool names |
 | `no_tools` | `false` | Read-only analysis |
-| `max_turns` | – | Enforced by the action; Pi has no CLI equivalent |
-| `system_prompt` / `append_system_prompt` | – | System prompt overrides |
-| `json_schema` | – | JSON Schema appended to the prompt; result exposed as `structured_output` |
+| `max_turns` | 鈥?| Enforced by the action; Pi has no CLI equivalent |
+| `system_prompt` / `append_system_prompt` | 鈥?| System prompt overrides |
+| `json_schema` | 鈥?| JSON Schema appended to the prompt; result exposed as `structured_output` |
 | `trust_project_files` | `false` | Allow project `.pi/` configuration |
 | `branch_prefix` | `pi/` | Branch namespace for agent mode |
-| `allowed_bots`, `allowed_non_write_users`, `restrict_untrusted_prs` | – / – / `true` | Access control |
+| `allowed_bots`, `allowed_non_write_users`, `restrict_untrusted_prs` | 鈥?/ 鈥?/ `true` | Access control |
 | `show_full_output` | `false` | Log every event (may leak repository content) |
 | `display_report` | `true` | Write the report to the step summary |
-| `path_to_pi_executable` / `path_to_bun_executable` | – | Skip auto-install |
+| `path_to_pi_executable` / `path_to_bun_executable` | 鈥?| Skip auto-install |
 
 ## Outputs
 

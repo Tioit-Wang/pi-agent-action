@@ -5,12 +5,12 @@
 The action runs [`pi`](https://pi.dev) as a subprocess. Pi needs a model id and a
 credential; how you supply them depends on the endpoint.
 
-**A provider Pi already supports** (Anthropic, OpenAI, Google, …): pass `model`
+**A provider Pi already supports** (Anthropic, OpenAI, Google, 鈥?: pass `model`
 with the provider prefix and set that provider's environment variable, or pass
 `api_key`.
 
 ```yaml
-- uses: your-org/pi-agent-action@v1
+- uses: Tioit-Wang/pi-agent-action@v1
   with:
     model: anthropic/claude-sonnet-5
     api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -21,15 +21,14 @@ gateway): also pass `provider` and, when it is not one of the known ones,
 `base_url`. The action writes the `models.json` entry for you.
 
 ```yaml
-- uses: your-org/pi-agent-action@v1
+- uses: Tioit-Wang/pi-agent-action@v1
   with:
     provider: deepseek
     model: deepseek-chat
     api_key: ${{ secrets.DEEPSEEK_API_KEY }}
 ```
 
-Defaults: `deepseek` → `https://api.deepseek.com`, `openrouter` →
-`https://openrouter.ai/api/v1`, `ollama` → `http://localhost:11434/v1`. For
+Defaults: `deepseek` 鈫?`https://api.deepseek.com`, `openrouter` 鈫?`https://openrouter.ai/api/v1`, `ollama` 鈫?`http://localhost:11434/v1`. For
 anything else set `base_url` explicitly.
 
 The key never reaches disk: it is exported to the `pi` process as
@@ -57,7 +56,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: your-org/pi-agent-action@v1
+      - uses: Tioit-Wang/pi-agent-action@v1
         with:
           provider: deepseek
           model: deepseek-chat
@@ -75,7 +74,7 @@ Grant the narrowest set that still does the job:
 | --- | --- | --- |
 | Answer questions, classify an issue | `contents: read`, `issues: write` (for a reply) | `no_tools: "true"` |
 | Review a pull request | `contents: read`, `pull-requests: write` | `track_progress: "true"` |
-| Implement a change and open a pull request | `contents: write`, `pull-requests: write`, `issues: write` | – |
+| Implement a change and open a pull request | `contents: write`, `pull-requests: write`, `issues: write` | 鈥?|
 
 `id-token: write` is not needed: there is no Anthropic OIDC path in this fork.
 
@@ -94,6 +93,6 @@ before `pi` starts.
 
 ## Next
 
-- [usage.md](usage.md) — modes, triggers, inputs and outputs
-- [configuration.md](configuration.md) — providers, tools, MCP, settings
-- [security.md](security.md) — trust boundaries and what to keep read-only
+- [usage.md](usage.md) 鈥?modes, triggers, inputs and outputs
+- [configuration.md](configuration.md) 鈥?providers, tools, MCP, settings
+- [security.md](security.md) 鈥?trust boundaries and what to keep read-only

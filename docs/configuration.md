@@ -9,7 +9,7 @@ Decision table:
 
 | Your endpoint | Inputs | What the action does |
 | --- | --- | --- |
-| In Pi's catalog (Anthropic, OpenAI, Google, …) | `model: anthropic/claude-sonnet-5` + `api_key` or the provider's env var | Nothing to configure; passes `--model` |
+| In Pi's catalog (Anthropic, OpenAI, Google, 鈥? | `model: anthropic/claude-sonnet-5` + `api_key` or the provider's env var | Nothing to configure; passes `--model` |
 | Known compatible provider | `provider: deepseek` (or `openrouter`, `ollama`) + `model` | Writes `models.json` with the default base URL |
 | Any other OpenAI-compatible endpoint | `provider` + `base_url` + `model` + `api_key` | Writes `models.json` with your base URL |
 | Local model server on the runner | `provider: ollama`, `model`, no key | Writes `models.json`; Pi uses a placeholder key |
@@ -60,7 +60,7 @@ Pi's built-in tools: `read`, `grep`, `find`, `ls`, `bash`, `edit`, `write`.
 | `max_turns` | The action kills `pi` after this many `turn_end` records. |
 
 `no_tools` wins over the other two. Deny rules are tool-level, not
-per-command — `bash` is all or nothing. That is why untrusted pull requests lose
+per-command 鈥?`bash` is all or nothing. That is why untrusted pull requests lose
 `bash`, `edit` and `write` entirely.
 
 ## MCP servers
@@ -84,7 +84,7 @@ an `mcpServers` document in the agent directory before this action runs:
     cat > ~/.pi/agent/mcp.json <<'JSON'
     {"mcpServers":{"docs":{"command":"npx","args":["-y","my-docs-mcp"]}}}
     JSON
-- uses: your-org/pi-agent-action@v1
+- uses: Tioit-Wang/pi-agent-action@v1
   with: { provider: deepseek, model: deepseek-chat, api_key: "${{ secrets.DEEPSEEK_API_KEY }}" }
 ```
 
@@ -121,8 +121,8 @@ returning an empty output.
 
 Three knobs matter:
 
-- `max_turns` — bounds the agent loop.
-- `allowed_tools` / `no_tools` — fewer tools, fewer round trips.
-- `model` — a small model for classification, a large one for implementation.
+- `max_turns` 鈥?bounds the agent loop.
+- `allowed_tools` / `no_tools` 鈥?fewer tools, fewer round trips.
+- `model` 鈥?a small model for classification, a large one for implementation.
 
 A triage run is typically one to three turns. An implementation run is tens.

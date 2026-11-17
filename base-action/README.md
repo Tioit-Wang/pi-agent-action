@@ -3,13 +3,13 @@
 Run the [Pi](https://pi.dev) coding agent non-interactively inside GitHub
 Actions. This is the low-level building block: it sends one prompt to `pi` and
 reports what came back. It does not read issues or comments and it does not touch
-GitHub — use the top-level action for that.
+GitHub 鈥?use the top-level action for that.
 
 ## Usage
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: your-org/pi-agent-action/base-action@v1
+- uses: Tioit-Wang/pi-agent-action/base-action@v1
   id: pi
   with:
     provider: deepseek
@@ -22,7 +22,7 @@ GitHub — use the top-level action for that.
 From a file, with a turn cap and no tools:
 
 ```yaml
-- uses: your-org/pi-agent-action/base-action@v1
+- uses: Tioit-Wang/pi-agent-action/base-action@v1
   with:
     provider: deepseek
     model: deepseek-chat
@@ -35,7 +35,7 @@ From a file, with a turn cap and no tools:
 A structured answer:
 
 ```yaml
-- uses: your-org/pi-agent-action/base-action@v1
+- uses: Tioit-Wang/pi-agent-action/base-action@v1
   id: pi
   with:
     provider: deepseek
@@ -57,10 +57,10 @@ A structured answer:
 stream: a session header, then session events, then `agent_settled`. The action
 parses that stream and derives:
 
-- `conclusion` — success only when the process exits 0, the stream settles, no
+- `conclusion` 鈥?success only when the process exits 0, the stream settles, no
   error event arrived, and any `max_turns` limit was respected;
-- `session_id` — the header record's id;
-- `structured_output` — the JSON object extracted from the final assistant
+- `session_id` 鈥?the header record's id;
+- `structured_output` 鈥?the JSON object extracted from the final assistant
   message when `json_schema` is set.
 
 The raw event array is written to `<runner temp>/claude-execution-output.json` and
@@ -101,7 +101,7 @@ plaintext.
 | `trust_project_files`    | Trust project-local `.pi/` configuration for this run                                                       | No       | `'false'`     |
 | `path_to_pi_executable`  | Path to a Pi executable; skips the automatic install                                                        | No       | `''`          |
 | `path_to_bun_executable` | Path to a Bun executable; skips the automatic install                                                       | No       | `''`          |
-| `show_full_output`       | Log every event instead of a sanitized summary (⚠️ may include repository content)                          | No       | `'false'`     |
+| `show_full_output`       | Log every event instead of a sanitized summary (鈿狅笍 may include repository content)                          | No       | `'false'`     |
 
 \* One of `prompt` or `prompt_file` is required.
 

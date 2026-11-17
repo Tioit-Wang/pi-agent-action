@@ -29,7 +29,7 @@ json_schema: |          # structured result
 repository, and a tool-less run can only produce text.
 
 Pair it with `allowed_non_write_users: "*"` so reports from people without write
-access can be triaged — the workflow only has `issues: write`.
+access can be triaged 鈥?the workflow only has `issues: write`.
 
 ## Pull request review
 
@@ -83,7 +83,7 @@ on:
 Start from the smallest thing that works:
 
 ```yaml
-- uses: your-org/pi-agent-action@v1
+- uses: Tioit-Wang/pi-agent-action@v1
   with:
     provider: deepseek
     model: deepseek-chat
@@ -92,8 +92,7 @@ Start from the smallest thing that works:
       Answer the question in this issue and nothing else.
 ```
 
-Then add only what the task needs, in this order: `no_tools` → `allowed_tools` →
-`json_schema` → `max_turns`. Each one removes a class of failure rather than
+Then add only what the task needs, in this order: `no_tools` 鈫?`allowed_tools` 鈫?`json_schema` 鈫?`max_turns`. Each one removes a class of failure rather than
 adding a feature.
 
 Prompt tips that matter with Pi specifically:

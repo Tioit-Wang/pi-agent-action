@@ -1,4 +1,4 @@
-# After a failing workflow, explain the failure on the PR — or fix it when it is
+# After a failing workflow, explain the failure on the PR 鈥?or fix it when it is
 # mechanical.
 #
 # `additional_permissions: actions: read` is what installs the github_ci MCP
@@ -26,7 +26,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_branch }}
           fetch-depth: 0
 
-      - uses: your-org/pi-agent-action@v1
+      - uses: Tioit-Wang/pi-agent-action@v1
         with:
           provider: deepseek
           model: deepseek-chat

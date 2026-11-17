@@ -28,7 +28,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: your-org/pi-agent-action@v1
+      - uses: Tioit-Wang/pi-agent-action@v1
         with:
           provider: deepseek
           model: deepseek-chat
