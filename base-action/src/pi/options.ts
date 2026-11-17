@@ -71,12 +71,19 @@ function parseExtraArgs(raw?: string): string[] {
   return words;
 }
 
+/**
+ * Turn budget for a run. An empty value, `0` or any negative number means "no
+ * limit": Pi keeps going until it finishes. Anything else must be a positive
+ * integer, because a silently ignored typo would either never stop or stop at
+ * once.
+ */
 export function parseMaxTurns(raw?: string): number | undefined {
   if (!raw?.trim()) return undefined;
   const value = Number.parseInt(raw.trim(), 10);
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`max_turns must be a positive integer, got "${raw}"`);
+  if (!Number.isFinite(value)) {
+    throw new Error(`max_turns must be an integer, got "${raw}"`);
   }
+  if (value <= 0) return undefined;
   return value;
 }
 

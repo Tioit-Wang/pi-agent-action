@@ -206,9 +206,14 @@ async function run() {
         !!process.env.OVERRIDE_GITHUB_TOKEN,
       );
       if (!hasWritePermissions) {
-        throw new Error(
-          "Actor does not have write permissions to the repository",
+        // Someone without write access asked for a run. Ignore it: no comment,
+        // no failing job, nothing for them to react to.
+        core.info(
+          `${context.actor} does not have write access to this repository; ignoring the request.`,
         );
+        core.setOutput("conclusion", "skipped");
+        core.setOutput("github_token", githubToken);
+        return;
       }
     }
 
@@ -234,9 +239,15 @@ async function run() {
       !!process.env.OVERRIDE_GITHUB_TOKEN,
     );
     if (!botActorAllowed) {
-      throw new Error(
-        "A bot acted on this pull request, but its author does not have write access",
+      // The bot itself is allowed, but the pull request it acted on comes from
+      // someone without write access. Treat it like any other unauthorized
+      // mention and stay quiet.
+      core.info(
+        `${context.actor} acted on a pull request whose author does not have write access; ignoring the request.`,
       );
+      core.setOutput("conclusion", "skipped");
+      core.setOutput("github_token", githubToken);
+      return;
     }
 
     // Run prepare

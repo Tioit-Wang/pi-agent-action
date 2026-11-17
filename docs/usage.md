@@ -37,7 +37,7 @@ behaviour most:
 | --- | --- |
 | `no_tools` | No tools at all. Use for classification and Q&A on untrusted text. |
 | `allowed_tools` / `disallowed_tools` | Comma-separated Pi tool names: `read`, `grep`, `find`, `ls`, `bash`, `edit`, `write`. |
-| `max_turns` | Hard cap on assistant turns. The action kills the run above it. |
+| `max_turns` | Hard cap on assistant turns. Empty, `0` or a negative value means no limit. |
 | `json_schema` | Schema appended to the prompt; the object is extracted from the final reply. |
 | `pi_args` | Extra CLI flags, e.g. `--thinking high`. Plain words only; shell operators are rejected. |
 | `trust_project_files` | Load project `.pi/` configuration. Leave false for untrusted content. |

@@ -34,7 +34,8 @@ enough to review or answer, not enough to run the PR's code.
 comment on a public repository. Two gates apply:
 
 1. `checkWritePermissions` — the actor must have write access, unless listed in
-   `allowed_non_write_users`.
+   `allowed_non_write_users`. Anyone else is ignored: the run stops before it
+   creates a comment, so the mention leaves no trace and no failing job.
 2. `allowed_bots` — bots need an explicit entry. `*` on a public repository lets
    any installed App drive the action with a prompt it controls.
 

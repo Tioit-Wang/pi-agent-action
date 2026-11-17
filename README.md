@@ -173,6 +173,13 @@ Known base URLs are filled in automatically for `deepseek`, `openrouter` and
 
 Full trust model: [docs/security.md](docs/security.md).
 
+## Who can trigger a run
+
+A mention only starts a run when its author has `write` or `admin` access to the
+repository. Anyone else gets nothing at all: no comment, no failing job, no error
+message to react to. `allowed_bots` covers automation, and
+`allowed_non_write_users` deliberately opens the gate to named outsiders.
+
 ## Structured output
 
 Agents are for humans, but a workflow may want a machine-readable answer. Give it
@@ -248,7 +255,7 @@ extracts the object from the final message.
 | --- | --- | --- |
 | `allowed_tools` / `disallowed_tools` | – | Comma-separated Pi tools: `read`, `grep`, `find`, `ls`, `bash`, `edit`, `write` |
 | `no_tools` | `false` | No tools at all |
-| `max_turns` | – | Hard cap on assistant turns, enforced by the action |
+| `max_turns` | – | Hard cap on assistant turns; empty, `0` or a negative value means no limit |
 | `restrict_untrusted_prs` | `true` | Strip run/mutate tools on untrusted PRs |
 | `trust_project_files` | `false` | Load project-local `.pi/` configuration |
 

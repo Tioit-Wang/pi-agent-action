@@ -64,12 +64,13 @@ describe("parsePiOptions", () => {
 
   test("parses max_turns as a positive integer", () => {
     expect(parsePiOptions({ maxTurns: "7" }).maxTurns).toBe(7);
-    expect(() => parsePiOptions({ maxTurns: "0" })).toThrow(
-      /positive integer/,
-    );
-    expect(() => parsePiOptions({ maxTurns: "many" })).toThrow(
-      /positive integer/,
-    );
+    expect(() => parsePiOptions({ maxTurns: "many" })).toThrow(/integer/);
+  });
+
+  test("treats an empty, zero or negative max_turns as no limit", () => {
+    expect(parsePiOptions({ maxTurns: "" }).maxTurns).toBeUndefined();
+    expect(parsePiOptions({ maxTurns: "0" }).maxTurns).toBeUndefined();
+    expect(parsePiOptions({ maxTurns: "-1" }).maxTurns).toBeUndefined();
   });
 
   test("treats show_full_output literally", () => {

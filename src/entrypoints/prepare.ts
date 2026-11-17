@@ -48,9 +48,14 @@ async function run() {
         githubTokenProvided,
       );
       if (!hasWritePermissions) {
-        throw new Error(
-          "Actor does not have write permissions to the repository",
+        // Keep the two entrypoints on the same rule: an unauthorized mention is
+        // ignored, not turned into a failing job.
+        core.info(
+          `${context.actor} does not have write access to this repository; ignoring the request.`,
         );
+        core.setOutput("contains_trigger", "false");
+        core.setOutput("github_token", githubToken);
+        return;
       }
     }
 

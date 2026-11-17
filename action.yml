@@ -108,7 +108,7 @@ inputs:
     required: false
     default: "false"
   max_turns:
-    description: "Abort the run when Pi exceeds this many assistant turns. Pi has no CLI equivalent, so the action enforces it."
+    description: "Abort the run when Pi exceeds this many assistant turns. Leave it empty, or set 0 or a negative value, for no turn limit. Pi has no CLI equivalent, so the action enforces it."
     required: false
     default: ""
   system_prompt:

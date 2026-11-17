@@ -57,7 +57,7 @@ Pi's built-in tools: `read`, `grep`, `find`, `ls`, `bash`, `edit`, `write`.
 | `no_tools: "true"` | `--no-tools`. The agent can only reason over the prompt. |
 | `allowed_tools` | `--tools a,b,c`. Only these exist for the run. |
 | `disallowed_tools` | `--exclude-tools a,b`. Everything else stays. |
-| `max_turns` | The action kills `pi` after this many `turn_end` records. |
+| `max_turns` | The action kills `pi` after this many `turn_end` records. Empty, `0` or a negative value means no limit. |
 
 `no_tools` wins over the other two. Deny rules are tool-level, not
 per-command — `bash` is all or nothing. That is why untrusted pull requests lose
