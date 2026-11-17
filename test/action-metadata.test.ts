@@ -1,5 +1,11 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
@@ -140,4 +146,21 @@ describe("action metadata", () => {
     }
     expect(inScripts).toEqual([]);
   });
+});
+// The metadata pins bun to the action directory's own config. That reference is
+// only useful if the file ships with the action, which nothing else checks.
+describe("action metadata references", () => {
+  test.each(["action.yml", "base-action/action.yml"])(
+    "%s only points at config files that exist",
+    (path) => {
+      const metadata = readMetadata(path);
+      const dir = path === "action.yml" ? "" : "base-action/";
+      for (const file of ["bunfig.toml", "tsconfig.json"]) {
+        if (!metadata.includes(`GITHUB_ACTION_PATH}/${file}`)) continue;
+        expect(existsSync(new URL(`../${dir}${file}`, import.meta.url))).toBe(
+          true,
+        );
+      }
+    },
+  );
 });
