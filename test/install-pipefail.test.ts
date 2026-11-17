@@ -3,31 +3,28 @@ import { spawnSync } from "child_process";
 import { buildInstallCommand } from "../src/entrypoints/run";
 
 describe("buildInstallCommand (regression for #1136)", () => {
-  it("includes the pinned claude version in the bash -s args", () => {
-    const cmd = buildInstallCommand("2.1.114");
-    expect(cmd).toContain("bash -s -- 2.1.114");
+  it("pins the published pi package version", () => {
+    const cmd = buildInstallCommand("1.5.0");
+    expect(cmd).toContain("@earendil-works/pi-coding-agent@1.5.0");
   });
 
-  it("prefixes the pipeline with `set -o pipefail`", () => {
-    const cmd = buildInstallCommand("2.1.114");
+  it("prefixes the command with `set -o pipefail`", () => {
+    const cmd = buildInstallCommand("1.5.0");
     expect(cmd.startsWith("set -o pipefail;")).toBe(true);
   });
 
-  it("keeps the curl -fsSL flags so the script is fetched, not inlined", () => {
-    const cmd = buildInstallCommand("2.1.114");
-    expect(cmd).toContain(
-      "curl -fsSL https://claude.ai/install.sh | bash -s --",
-    );
+  it("installs from the registry instead of piping a remote script", () => {
+    const cmd = buildInstallCommand("1.5.0");
+    expect(cmd).toContain("npm install -g --ignore-scripts");
+    expect(cmd).not.toContain("curl");
+    expect(cmd).not.toContain("| bash");
   });
 });
 
 describe("pipefail semantics (proves the bug shape and the fix)", () => {
-  // Mirrors the real install invocation: a curl that returns non-zero
-  // feeding into `bash -s --`. Without pipefail, the pipeline exits 0
-  // because bash -s receives an empty stdin and does nothing. With
-  // pipefail, curl's exit code wins and the retry loop in run.ts triggers.
+  // The install command keeps the job's exit status meaningful: npm must not be
+  // hidden behind a pipe whose last command always succeeds.
   //
-  // Uses port 1 (reserved/unused) so curl fails deterministically with no
   // network access. No shell-escaping traps here: the version argument is
   // a numeric literal.
   const unreachable = "http://127.0.0.1:1/nope";
