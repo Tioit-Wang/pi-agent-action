@@ -105,6 +105,10 @@ type BaseContext = {
     includeCommentsByActor: string;
     /** Append the run details footer (executor, model, tokens, cost). */
     usageFooter?: boolean;
+    /** Run the triage pipeline instead of answering a mention. */
+    triage?: boolean;
+    /** Path to the repository's triage configuration. */
+    triageConfig?: string;
     excludeCommentsByActor: string;
   };
 };
@@ -167,6 +171,8 @@ export function parseGitHubContext(): GitHubContext {
       trackProgress: process.env.TRACK_PROGRESS === "true",
       progressUpdates: process.env.PROGRESS_UPDATES !== "false",
       usageFooter: process.env.USAGE_FOOTER !== "false",
+      triage: process.env.TRIAGE === "true",
+      triageConfig: process.env.TRIAGE_CONFIG || ".github/pi-triage.yml",
       includeFixLinks: process.env.INCLUDE_FIX_LINKS === "true",
       includeCommentsByActor: process.env.INCLUDE_COMMENTS_BY_ACTOR ?? "",
       excludeCommentsByActor: process.env.EXCLUDE_COMMENTS_BY_ACTOR ?? "",

@@ -61,6 +61,7 @@ import { validatePiEnvironment } from "../../base-action/src/validate-env";
 import { setupPiSettings } from "../../base-action/src/setup-pi-settings";
 import { preparePrompt } from "../../base-action/src/prepare-prompt";
 import { runPi } from "../../base-action/src/pi/run";
+import { runTriageFromRepo } from "../triage/run";
 import type { PiRunResult } from "../../base-action/src/pi/run";
 import { parsePiOptions } from "../../base-action/src/pi/options";
 import { bootstrapPiProvider } from "../../base-action/src/pi/provider";
@@ -222,6 +223,66 @@ async function run() {
     }
 
     octokit = createOctokit(githubToken);
+
+    // Triage runs before the mention gate: it exists to label every new issue,
+    // including the ones opened by people without write access. It never creates
+    // a tracking comment, so it cannot leak a reply.
+    if (context.inputs.triage === true) {
+      const issueNumber =
+        isEntityContext(context) && context.entityNumber
+          ? Number(context.entityNumber)
+          : NaN;
+      if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
+        throw new Error("Triage requires an issue event with an issue number");
+      }
+
+      const piExecutable = await installPi();
+      const providerConfig = await bootstrapPiProvider({
+        provider: process.env.PI_PROVIDER,
+        model: process.env.PI_MODEL,
+        baseUrl: process.env.PI_BASE_URL,
+        apiKey: process.env.PI_API_KEY,
+        api: process.env.PI_API_STYLE,
+        agentDir: process.env.PI_CODING_AGENT_DIR,
+      });
+
+      const triageResult = await runTriageFromRepo({
+        octokit: octokit.rest,
+        owner: context.repository.owner,
+        repo: context.repository.repo,
+        issueNumber,
+        configPath: context.inputs.triageConfig ?? ".github/pi-triage.yml",
+        askModel: async (prompt, schema) => {
+          const answer = await runPi({
+            promptPath: "",
+            promptText: prompt,
+            parsed: parsePiOptions({
+              provider: process.env.PI_PROVIDER,
+              model: process.env.PI_MODEL,
+              noTools: true,
+              approveProject: false,
+              showFullOutput: process.env.INPUT_SHOW_FULL_OUTPUT,
+              maxTurns: "1",
+            }),
+            env: providerConfig.env,
+            piExecutable,
+            jsonSchema: JSON.stringify(schema),
+          });
+          if (answer.conclusion !== "success" || !answer.structuredOutput) {
+            throw new Error(answer.error ?? "Triage model returned no answer");
+          }
+          return JSON.parse(answer.structuredOutput);
+        },
+      });
+
+      if (triageResult.degraded) {
+        core.warning("Duplicate detection was skipped for this run.");
+      }
+      core.info(
+        `Triage done: labels=${triageResult.labelsApplied.join(",") || "(none)"} duplicate_of=${triageResult.duplicateOf ?? "(none)"}`,
+      );
+      return;
+    }
 
     // Set GITHUB_TOKEN and GH_TOKEN in process env for downstream usage
     process.env.GITHUB_TOKEN = githubToken;
