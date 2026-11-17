@@ -67,9 +67,11 @@ stream from stdout, and derives everything it reports from those records. See
 
 ## Providers
 
-Pi ships a model catalog. Anything else (DeepSeek, OpenRouter, vLLM, a proxy) is
-declared in `models.json`. The action writes it for you when `provider` and
-`base_url` are set:
+Pi ships a bundled model catalog that already includes a `deepseek` provider.
+Those models only appear in `pi --list-models` once a credential resolves, so a
+missing key looks like a missing provider. Use `models.json` — which the action
+writes for you — when you need a different base URL (a gateway or proxy) or a
+model the catalog does not list:
 
 ```jsonc
 {
@@ -95,21 +97,21 @@ empty and export the provider's own environment variable or pass `api_key`.
 | Input | Default | Notes |
 | --- | --- | --- |
 | `trigger_phrase` | `@pi` | Phrase looked for in comments and issue bodies |
-| `assignee_trigger` / `label_trigger` | 鈥?/ `pi` | Alternative triggers |
-| `provider` / `model` / `api_key` / `base_url` / `api_style` | 鈥?| Provider selection (see above) |
+| `assignee_trigger` / `label_trigger` | – / `pi` | Alternative triggers |
+| `provider` / `model` / `api_key` / `base_url` / `api_style` | – | Provider selection (see above) |
 | `agent_dir` | `~/.pi/agent` | Sessions, `settings.json`, `models.json` |
-| `pi_args` | 鈥?| Extra CLI arguments, e.g. `--thinking high` |
-| `allowed_tools` / `disallowed_tools` | 鈥?| Comma-separated Pi tool names |
+| `pi_args` | – | Extra CLI arguments, e.g. `--thinking high` |
+| `allowed_tools` / `disallowed_tools` | – | Comma-separated Pi tool names |
 | `no_tools` | `false` | Read-only analysis |
-| `max_turns` | 鈥?| Enforced by the action; Pi has no CLI equivalent |
-| `system_prompt` / `append_system_prompt` | 鈥?| System prompt overrides |
-| `json_schema` | 鈥?| JSON Schema appended to the prompt; result exposed as `structured_output` |
+| `max_turns` | – | Enforced by the action; Pi has no CLI equivalent |
+| `system_prompt` / `append_system_prompt` | – | System prompt overrides |
+| `json_schema` | – | JSON Schema appended to the prompt; result exposed as `structured_output` |
 | `trust_project_files` | `false` | Allow project `.pi/` configuration |
 | `branch_prefix` | `pi/` | Branch namespace for agent mode |
-| `allowed_bots`, `allowed_non_write_users`, `restrict_untrusted_prs` | 鈥?/ 鈥?/ `true` | Access control |
+| `allowed_bots`, `allowed_non_write_users`, `restrict_untrusted_prs` | – / – / `true` | Access control |
 | `show_full_output` | `false` | Log every event (may leak repository content) |
 | `display_report` | `true` | Write the report to the step summary |
-| `path_to_pi_executable` / `path_to_bun_executable` | 鈥?| Skip auto-install |
+| `path_to_pi_executable` / `path_to_bun_executable` | – | Skip auto-install |
 
 ## Outputs
 

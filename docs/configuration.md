@@ -9,8 +9,8 @@ Decision table:
 
 | Your endpoint | Inputs | What the action does |
 | --- | --- | --- |
-| In Pi's catalog (Anthropic, OpenAI, Google, 鈥? | `model: anthropic/claude-sonnet-5` + `api_key` or the provider's env var | Nothing to configure; passes `--model` |
-| Known compatible provider | `provider: deepseek` (or `openrouter`, `ollama`) + `model` | Writes `models.json` with the default base URL |
+| In Pi's catalog (Anthropic, OpenAI, Google, DeepSeek, …) | `provider` + `model`, with `api_key` or the provider's env var | Passes `--provider` / `--model`; no file needed |
+| The same provider behind a gateway or proxy | the above plus `base_url` | Writes `models.json` with your base URL; the provider's other models stay listed |
 | Any other OpenAI-compatible endpoint | `provider` + `base_url` + `model` + `api_key` | Writes `models.json` with your base URL |
 | Local model server on the runner | `provider: ollama`, `model`, no key | Writes `models.json`; Pi uses a placeholder key |
 
@@ -60,7 +60,7 @@ Pi's built-in tools: `read`, `grep`, `find`, `ls`, `bash`, `edit`, `write`.
 | `max_turns` | The action kills `pi` after this many `turn_end` records. |
 
 `no_tools` wins over the other two. Deny rules are tool-level, not
-per-command 鈥?`bash` is all or nothing. That is why untrusted pull requests lose
+per-command — `bash` is all or nothing. That is why untrusted pull requests lose
 `bash`, `edit` and `write` entirely.
 
 ## MCP servers
@@ -121,8 +121,8 @@ returning an empty output.
 
 Three knobs matter:
 
-- `max_turns` 鈥?bounds the agent loop.
-- `allowed_tools` / `no_tools` 鈥?fewer tools, fewer round trips.
-- `model` 鈥?a small model for classification, a large one for implementation.
+- `max_turns` — bounds the agent loop.
+- `allowed_tools` / `no_tools` — fewer tools, fewer round trips.
+- `model` — a small model for classification, a large one for implementation.
 
 A triage run is typically one to three turns. An implementation run is tens.

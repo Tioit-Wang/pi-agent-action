@@ -1,9 +1,12 @@
 /**
  * Provider bootstrap for the Pi agent CLI.
  *
- * Pi ships a bundled model catalog. Endpoints it does not ship (DeepSeek,
- * OpenRouter, Ollama, vLLM, proxies, ...) are declared in `models.json` inside
- * the agent directory. Reference:
+ * Pi ships a bundled model catalog that already includes several hosted
+ * providers (Anthropic, OpenAI, Google, DeepSeek, ...). Their models only appear
+ * in `--list-models` once a credential resolves, so `models.json` is needed for a
+ * different base URL, a gateway, or a model the catalog does not list.
+ *
+ * Reference:
  * node_modules/@earendil-works/pi-coding-agent/docs/models.md#configure-a-compatible-endpoint
  *
  * The API key is never written to disk: `models.json` interpolates an

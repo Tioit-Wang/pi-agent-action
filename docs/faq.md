@@ -24,14 +24,19 @@ credential. Three ways to supply one:
 
 ## The model is not found
 
-`pi --list-models` shows Pi's bundled catalog. DeepSeek, OpenRouter and most
-gateways are **not** in it; they need the `provider` input so the action writes
-`models.json`. Checks:
+`pi --list-models` only shows providers whose credential resolves. A provider you
+know Pi supports — DeepSeek included — disappears from that list when no key is
+available, which reads like "the model is not found". Checks:
 
-- `provider: deepseek` and `model: deepseek-chat` (id only, without the
+- the credential actually reached the process: `api_key` alone is enough, but an
+  environment variable must be exported at job level, and the action passes the
+  key to `pi` as `PI_PROVIDER_API_KEY`
+- `provider: deepseek` and `model: deepseek-v4.1-flash` (the id alone, without the
   `provider/` prefix when you also pass `provider`)
-- for an unlisted endpoint, `base_url` must be set
-- `api_style` should stay `openai-completions` unless the endpoint only speaks
+- `base_url` is required when the endpoint is a gateway or proxy; the action then
+  writes `models.json` with that base URL and adds the model id
+- a model id the catalog does not list needs both `provider` and `base_url`, and
+  `api_style` should stay `openai-completions` unless the endpoint only speaks
   the responses API
 
 ## `pi_args` was rejected
