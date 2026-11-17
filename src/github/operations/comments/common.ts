@@ -1,7 +1,17 @@
 import { GITHUB_SERVER_URL } from "../../api/config";
 
-export const SPINNER_HTML =
-  '<img src="https://github.com/user-attachments/assets/5ac382c7-e004-429b-8e35-7feb3e8f9c6f" width="14px" height="14px" style="vertical-align: middle; margin-left: 4px;" />';
+/**
+ * Inline "working" indicator for the tracking comment.
+ *
+ * GitHub does not render inline SVG in issue comments, so the mascot ships as
+ * an animated GIF (`assets/pi-mascot.gif`, 32 frames, 4 s loop) served from
+ * this repository. The art is a solid silhouette with knocked-out eyes so it
+ * stays legible on both the light and the dark comment theme at inline size.
+ */
+export const SPINNER_URL =
+  "https://raw.githubusercontent.com/Tioit-Wang/pi-agent-action/main/assets/pi-mascot.gif";
+
+export const SPINNER_HTML = `<img src="${SPINNER_URL}" width="18px" height="18px" style="vertical-align: middle; margin-left: 4px;" />`;
 
 export function createJobRunLink(
   owner: string,

@@ -1,3 +1,8 @@
 # Keep the working tree LF on every platform: Prettier defaults to
 # endOfLine "lf" and several tests match LF-terminated content.
 * text=auto eol=lf
+
+# Binary image assets must not be line-ending converted.
+*.gif binary
+*.png binary
+*.ico binary
