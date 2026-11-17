@@ -158,6 +158,35 @@ describe("generatePrompt", () => {
     expect(prompt).not.toContain("filename\tstatus\tadditions\tdeletions\tsha"); // since it's not a PR
   });
 
+  test("tells the agent the action publishes its final message as the comment", async () => {
+    const envVars: PreparedContext = {
+      repository: "owner/repo",
+      claudeCommentId: "12345",
+      triggerPhrase: "@pi",
+      eventData: {
+        eventName: "issues",
+        eventAction: "opened",
+        issueNumber: "33",
+        isPR: false,
+        baseBranch: "main",
+        claudeBranch: "pi/issue-33-20240101-1200",
+      },
+    };
+
+    const prompt = await generatePrompt(envVars, mockGitHubData, false, "tag");
+
+    expect(prompt).toContain(
+      "Your final assistant message is published verbatim as the tracking comment",
+    );
+    // A workflow that narrows allowed_tools removes the MCP comment tool, so the
+    // answer must not depend on it.
+    expect(prompt).not.toContain("communicate exclusively");
+    expect(prompt).not.toContain("load it with ToolSearch first");
+    expect(prompt).not.toContain(
+      "Do NOT just respond with a normal response, the user will not see it",
+    );
+  });
+
   test("should generate prompt for pull_request_review event", async () => {
     const envVars: PreparedContext = {
       repository: "owner/repo",

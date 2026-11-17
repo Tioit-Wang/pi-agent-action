@@ -17,6 +17,7 @@ import { GITHUB_SERVER_URL } from "../github/api/config";
 import { checkAndCommitOrDeleteBranch } from "../github/operations/branch-cleanup";
 import { updateClaudeComment } from "../github/operations/comments/update-claude-comment";
 import { encodeBranchNameForUrl } from "../github/operations/comments/common";
+import { withAgentAnswer } from "../github/operations/comments/agent-answer";
 
 export type UpdateCommentLinkParams = {
   commentId: number;
@@ -40,22 +41,6 @@ export type UpdateCommentLinkParams = {
    */
   restoredConfigPaths?: string[];
 };
-
-const PLACEHOLDER_ANSWER = "I'll analyze this and get back to you.";
-
-/**
- * Replace the placeholder the initial comment carries with the agent's final
- * answer. Only the placeholder line changes; links and headers are rebuilt by
- * updateCommentBody afterwards.
- */
-function withAgentAnswer(body: string, answer?: string): string {
-  const trimmed = answer?.trim();
-  if (!trimmed) return body;
-  if (!body.includes(PLACEHOLDER_ANSWER)) {
-    return body.trimEnd() + "\n\n" + trimmed;
-  }
-  return body.replace(PLACEHOLDER_ANSWER, trimmed);
-}
 
 export async function updateCommentLink(
   params: UpdateCommentLinkParams,

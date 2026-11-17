@@ -32,6 +32,18 @@ const GIT_COMMIT_WRAPPER = `${process.env.GITHUB_ACTION_PATH}/scripts/git-commit
 /** Filename for the user request file, read by the SDK runner */
 const USER_REQUEST_FILENAME = "pi-user-request.txt";
 
+/**
+ * Who publishes the answer. The action writes the agent's final message into the
+ * tracking comment, so the prompt must not claim that the MCP comment tool is the
+ * only channel: a workflow that narrows allowed_tools removes that tool, and the
+ * agent then answers "I cannot post a comment" instead of answering the request.
+ */
+const REPLY_DELIVERY = `Reply delivery (authoritative):
+- Your final assistant message is published verbatim as the tracking comment on this issue or PR. Put the complete answer there.
+- Never describe your tooling, and never say that you cannot post, update, or edit the comment.
+- Do not open the final message with an <analysis> block or any other scratchpad reasoning.
+- mcp__github_comment__update_claude_comment is optional: use it only when it appears in your tool list, and only to post intermediate progress. It never replaces the final answer.`;
+
 // Tag mode defaults - these tools are needed for tag mode to function.
 // Edit/MultiEdit/Write are intentionally omitted: the permission mode allows file
 // edits inside $GITHUB_WORKSPACE and doesn't allow every write outside it.
@@ -599,10 +611,11 @@ To review or diff PR changes, compare against \`origin/${eventData.baseBranch}\`
 You cannot submit formal GitHub PR reviews, approve, or merge PRs (security reasons). If asked, politely decline and point to the FAQ: https://github.com/anthropics/claude-code-action/blob/main/docs/faq.md
 
 Communication:
-- Your ONLY visible output is your GitHub comment - update it with progress and results
-- Use mcp__github_comment__update_claude_comment to update (only "body" param needed)
+- Your final message is published as the GitHub comment - that is how the user reads your answer
 - Use checklist format for tasks: - [ ] incomplete, - [x] complete
 - Use ### headers (not #)
+
+${REPLY_DELIVERY}
 ${getCommitInstructions(eventData, githubData, context, useCommitSigning)}
 ${
   eventData.claudeBranch
@@ -717,21 +730,20 @@ ${sanitizeContent(eventData.commentBody)}
 </trigger_comment>`
     : ""
 }
-IMPORTANT: Use the mcp__github_comment__update_claude_comment tool to update your comment (load it with ToolSearch first).
+${REPLY_DELIVERY}
 
 Your task is to analyze the context, understand the request, and provide helpful responses and/or implement code changes as needed.
 
 IMPORTANT CLARIFICATIONS:
 - When asked to "review" code, read the code and provide review feedback (do not implement changes unless explicitly asked)${eventData.isPR ? "\n- For PR reviews: Your review will be posted when you update the comment. Focus on providing comprehensive review feedback." : ""}${eventData.isPR && eventData.baseBranch ? `\n- When comparing PR changes, use 'origin/${eventData.baseBranch}' as the base reference (NOT 'main' or 'master')` : ""}
-- Your console outputs and tool results are NOT visible to the user
-- ALL communication happens through your GitHub comment - that's how users see your feedback, answers, and progress. your normal responses are not seen.
+- Your console output and tool results are not visible to the user
+- Your final message is published as the tracking comment, so write it as the answer the user should read.
 
 Follow these steps:
 
 1. Create a Todo List:
-   - Use your GitHub comment to maintain a detailed task list based on the request.
-   - Format todos as a checklist (- [ ] for incomplete, - [x] for complete).
-   - Update the comment using mcp__github_comment__update_claude_comment with each task completion.
+   - Keep a checklist of the subtasks you identified and mark progress as you go.
+   - If mcp__github_comment__update_claude_comment is in your tool list you may also post the checklist there for early visibility.
 
 2. Gather Context:
    - Analyze the pre-fetched data provided above.
@@ -819,10 +831,11 @@ ${eventData.eventName === "issue_comment" || eventData.eventName === "pull_reque
    ${eventData.claudeBranch ? `- If you created anything in your branch, your comment must include the PR URL with prefilled title and body mentioned above.` : ""}
 
 Important Notes:
-- All communication must happen through GitHub PR comments.
-- Never create new comments. Only update the existing comment using mcp__github_comment__update_claude_comment.
-- This includes ALL responses: code reviews, answers to questions, progress updates, and final results.${eventData.isPR ? `\n- PR CRITICAL: After reading files and forming your response, you MUST post it by calling mcp__github_comment__update_claude_comment. Do NOT just respond with a normal response, the user will not see it.` : ""}
-- You communicate exclusively by editing your single comment - not through any other means.
+- All communication happens through the single tracking comment on this issue or PR.
+- Never create new comments.
+- This includes ALL responses: code reviews, answers to questions, progress updates, and final results.${eventData.isPR ? `\n- PR CRITICAL: put your review in your final message. It is published as the comment; a normal response that is not your final message is never shown.` : ""}
+
+${REPLY_DELIVERY}
 - Use this spinner HTML when work is in progress: <img src="https://github.com/user-attachments/assets/5ac382c7-e004-429b-8e35-7feb3e8f9c6f" width="14px" height="14px" style="vertical-align: middle; margin-left: 4px;" />
 ${eventData.isPR && !eventData.claudeBranch ? `- Always push to the existing branch when triggered on a PR.` : `- IMPORTANT: You are already on the correct branch (${eventData.claudeBranch || "the created branch"}). Never create new branches when triggered on issues or closed/merged PRs.`}
 ${
@@ -848,7 +861,7 @@ CAPABILITIES AND LIMITATIONS:
 When users ask you to do something, be aware of what you can and cannot do. This section helps you understand how to respond when users request actions outside your scope.
 
 What You CAN Do:
-- Respond in a single comment (by updating your initial comment with progress and results)
+- Answer in your final message, which the action publishes as the single reply
 - Answer questions about code and provide explanations
 - Perform code reviews and provide detailed feedback (without implementing unless asked)
 - Implement code changes (simple to moderate complexity) when explicitly requested
@@ -861,7 +874,7 @@ What You CAN Do:
 What You CANNOT Do:
 - Submit formal GitHub PR reviews
 - Approve pull requests (for security reasons)
-- Post multiple comments (you only update your initial comment)
+- Post multiple comments (the action publishes exactly one reply)
 - Execute commands outside the repository context${useCommitSigning ? "\n- Run arbitrary Bash commands (unless explicitly allowed via claude_args with --allowedTools)" : ""}
 - Perform branch operations (cannot merge branches, rebase, or perform other git operations beyond creating and pushing commits)
 - Modify files in the .github/workflows directory (GitHub App permissions do not allow workflow modifications)
