@@ -171,22 +171,27 @@ describe("setupGitHubToken without a GitHub App", () => {
     workflow: process.env.DEFAULT_WORKFLOW_TOKEN,
   };
 
+  const activeSpies: any[] = [];
+
   const withoutApp = (workflowToken?: string) => {
     delete process.env.OVERRIDE_GITHUB_TOKEN;
     if (workflowToken === undefined) delete process.env.DEFAULT_WORKFLOW_TOKEN;
     else process.env.DEFAULT_WORKFLOW_TOKEN = workflowToken;
-    spyOn(core, "getIDToken").mockRejectedValue(
-      new Error("Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable"),
+    activeSpies.push(
+      spyOn(core, "getIDToken").mockRejectedValue(
+        new Error("Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable"),
+      ),
+      spyOn(core, "warning").mockImplementation(() => {}),
+      spyOn(console, "log").mockImplementation(() => {}),
+      spyOn(global, "setTimeout").mockImplementation(((handler: any) => {
+        handler();
+        return 0 as any;
+      }) as any),
     );
-    spyOn(core, "warning").mockImplementation(() => {});
-    spyOn(console, "log").mockImplementation(() => {});
-    spyOn(global, "setTimeout").mockImplementation(((handler: any) => {
-      handler();
-      return 0 as any;
-    }) as any);
   };
 
   afterEach(() => {
+    while (activeSpies.length > 0) activeSpies.pop()?.mockRestore();
     if (originals.override === undefined)
       delete process.env.OVERRIDE_GITHUB_TOKEN;
     else process.env.OVERRIDE_GITHUB_TOKEN = originals.override;
