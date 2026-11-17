@@ -45,7 +45,14 @@ export type PiEventSummary = {
   /** Last assistant stop reason, e.g. `stop`, `error`, `aborted`. */
   stopReason?: string;
   /** Accumulated usage of every assistant message. */
-  usage: { input: number; output: number; totalTokens: number; cost: number };
+  usage: {
+    input: number;
+    output: number;
+    totalTokens: number;
+    cost: number;
+    /** Input tokens served from the provider's prompt cache. */
+    cacheRead: number;
+  };
 };
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -99,7 +106,7 @@ export function createEventCollector() {
     settled: false,
     aborted: false,
     errors: [],
-    usage: { input: 0, output: 0, totalTokens: 0, cost: 0 },
+    usage: { input: 0, output: 0, totalTokens: 0, cost: 0, cacheRead: 0 },
   };
   let malformed = 0;
 
@@ -140,6 +147,7 @@ export function createEventCollector() {
           summary.usage.input += usage.input ?? 0;
           summary.usage.output += usage.output ?? 0;
           summary.usage.totalTokens += usage.totalTokens ?? 0;
+          summary.usage.cacheRead += usage.cacheRead ?? 0;
           summary.usage.cost += usageCost(usage);
         }
         return;

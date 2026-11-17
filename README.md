@@ -314,9 +314,12 @@ tracking comment instead:
   gives the untrimmed records instead.
 - `usage_footer` (default `true`) closes the answer with a collapsed run summary:
   model, duration, turns, tokens and an estimated cost. It disappears entirely when
-  there is nothing to report, and `price_input_per_million` /
-  `price_output_per_million` turn tokens into dollars when the provider does not.
+  there is nothing to report; `price_input_per_million` / `price_output_per_million`
+  turn tokens into dollars when the provider reports no cost. DeepSeek `flash` and
+  `v4-pro` are priced from the built-in table, peak and off-peak aware, with cached
+  input billed at the cache-hit rate.
 - `display_report` (default `true`) writes the run report to the step summary.
+
 ### MCP servers
 
 `github_comment`, `github_inline_comment`, `github_ci` and `github_file_ops` are

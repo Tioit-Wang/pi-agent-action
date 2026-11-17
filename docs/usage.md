@@ -44,6 +44,7 @@ behaviour most:
 | `restrict_untrusted_prs` | Default `true`. Removes `bash`, `edit`, `write` on untrusted PR checkouts. |
 | `progress_updates` | Default `true`. Rewrites the tracking comment with the turn count, elapsed time and last tool while Pi runs. |
 | `usage_footer` | Default `true`. Appends a collapsed run summary (model, duration, turns, tokens, estimated cost) to the final comment. |
+| Built-in prices | DeepSeek `flash` (`deepseek-v4.1-flash`, `deepseek-flash`) and `v4-pro` are priced automatically, at peak and off-peak rates, with cached input at the cache-hit rate. |
 | `price_input_per_million` / `price_output_per_million` | USD per million tokens, used to estimate cost when the provider reports none. |
 
 ## Outputs

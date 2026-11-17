@@ -485,6 +485,10 @@ async function run() {
             ...(piResult.usage ? { outputTokens: piResult.usage.output } : {}),
             ...(piResult.usage ? { totalTokens: piResult.usage.totalTokens } : {}),
             ...(piResult.usage ? { costUsd: piResult.usage.cost } : {}),
+            ...(piResult.usage
+              ? { cacheReadTokens: piResult.usage.cacheRead }
+              : {}),
+            at: new Date(),
             ...(parsePrice(process.env.INPUT_PRICE_INPUT_PER_MILLION) !== undefined
               ? {
                   priceInputPerMillion: parsePrice(

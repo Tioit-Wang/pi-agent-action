@@ -50,6 +50,7 @@ describe("createEventCollector", () => {
       output: 11,
       totalTokens: 25,
       cost: 0.003,
+      cacheRead: 0,
     });
   });
 
