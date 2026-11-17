@@ -3,15 +3,20 @@ import { GITHUB_SERVER_URL } from "../../api/config";
 /**
  * Inline "working" indicator for the tracking comment.
  *
- * GitHub does not render inline SVG in issue comments, so the mascot ships as
- * an animated GIF (`assets/pi-mascot.gif`, 32 frames, 4 s loop) served from
- * this repository. The art is a solid silhouette with knocked-out eyes so it
- * stays legible on both the light and the dark comment theme at inline size.
+ * GitHub strips inline SVG from issue comments, so the mascot ships as two
+ * animated GIFs (`assets/pi-mascot-{light,dark}.gif`, 32 frames, 4 s loop) and
+ * is dispatched by `prefers-color-scheme` through `<picture>`, which the
+ * comment renderer keeps. Monochrome line art, exactly like the brand mark:
+ * dark ink on light themes, light ink on dark themes.
  */
-export const SPINNER_URL =
-  "https://raw.githubusercontent.com/Tioit-Wang/pi-agent-action/main/assets/pi-mascot.gif";
+const ASSET_URL =
+  "https://raw.githubusercontent.com/Tioit-Wang/pi-agent-action/main/assets";
 
-export const SPINNER_HTML = `<img src="${SPINNER_URL}" width="18px" height="18px" style="vertical-align: middle; margin-left: 4px;" />`;
+export const SPINNER_HTML =
+  `<picture>` +
+  `<source media="(prefers-color-scheme: dark)" srcset="${ASSET_URL}/pi-mascot-dark.gif">` +
+  `<img src="${ASSET_URL}/pi-mascot-light.gif" width="18px" height="18px" style="vertical-align: middle; margin-left: 4px;" />` +
+  `</picture>`;
 
 export function createJobRunLink(
   owner: string,
