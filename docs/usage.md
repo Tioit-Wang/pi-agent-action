@@ -51,7 +51,9 @@ behaviour most:
   with: { provider: deepseek, model: deepseek-chat, api_key: "${{ secrets.DEEPSEEK_API_KEY }}" }
 
 - run: echo "conclusion=${{ steps.pi.outputs.conclusion }}"
-- run: echo '${{ steps.pi.outputs.structured_output }}' | jq .
+- run: echo "$STRUCTURED_OUTPUT" | jq .
+  env:
+    STRUCTURED_OUTPUT: ${{ steps.pi.outputs.structured_output }}
 - run: echo "session=${{ steps.pi.outputs.session_id }}"
 ```
 

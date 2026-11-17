@@ -19,31 +19,37 @@ GitHub — use the top-level action for that.
       Review the diff against main and list the risky changes.
 ```
 
-Or from a file, with a turn cap:
+From a file, with a turn cap and no tools:
 
 ```yaml
+- uses: your-org/pi-agent-action/base-action@v1
   with:
+    provider: deepseek
+    model: deepseek-chat
+    api_key: ${{ secrets.DEEPSEEK_API_KEY }}
     prompt_file: ./prompts/review.md
     max_turns: "12"
-```
-
-Read-only analysis with no tools at all:
-
-```yaml
-  with:
     no_tools: "true"
-    prompt: "Summarize what this repository does in three sentences."
 ```
 
 A structured answer:
 
 ```yaml
+- uses: your-org/pi-agent-action/base-action@v1
+  id: pi
   with:
+    provider: deepseek
+    model: deepseek-chat
+    api_key: ${{ secrets.DEEPSEEK_API_KEY }}
     json_schema: |
       {"type":"object","properties":{"labels":{"type":"array","items":{"type":"string"}}},"required":["labels"]}
     prompt: "List the labels this issue should get."
-- run: echo '${{ steps.pi.outputs.structured_output }}'
+
+- run: echo "$STRUCTURED_OUTPUT" | jq .
+  env:
+    STRUCTURED_OUTPUT: ${{ steps.pi.outputs.structured_output }}
 ```
+
 
 ## How it runs
 
