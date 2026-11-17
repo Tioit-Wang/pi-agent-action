@@ -103,6 +103,8 @@ type BaseContext = {
     progressUpdates?: boolean;
     includeFixLinks: boolean;
     includeCommentsByActor: string;
+    /** Append the run details footer (executor, model, tokens, cost). */
+    usageFooter?: boolean;
     excludeCommentsByActor: string;
   };
 };
@@ -164,6 +166,7 @@ export function parseGitHubContext(): GitHubContext {
       allowedNonWriteUsers: process.env.ALLOWED_NON_WRITE_USERS ?? "",
       trackProgress: process.env.TRACK_PROGRESS === "true",
       progressUpdates: process.env.PROGRESS_UPDATES !== "false",
+      usageFooter: process.env.USAGE_FOOTER !== "false",
       includeFixLinks: process.env.INCLUDE_FIX_LINKS === "true",
       includeCommentsByActor: process.env.INCLUDE_COMMENTS_BY_ACTOR ?? "",
       excludeCommentsByActor: process.env.EXCLUDE_COMMENTS_BY_ACTOR ?? "",

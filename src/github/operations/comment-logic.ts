@@ -13,6 +13,8 @@ export type CommentUpdateInput = {
   actionFailed: boolean;
   /** True when the run was cancelled or timed out instead of failing. */
   actionCancelled?: boolean;
+  /** Run details footer appended after the answer. */
+  usageFooter?: string;
   executionDetails: ExecutionDetails | null;
   jobUrl: string;
   branchLink?: string;
@@ -81,6 +83,7 @@ export function updateCommentBody(input: CommentUpdateInput): string {
     branchName,
     triggerUsername,
     errorDetails,
+    usageFooter,
   } = input;
 
   // Extract content from the original comment body
@@ -206,8 +209,16 @@ const workingPattern = /(?:Pi|Claude Code) is working[…\.]{1,3}(?:\s*<img[^>]*
   // Remove any existing duration info at the bottom
   bodyContent = bodyContent.replace(/\n*---\n*Duration: [0-9]+m? [0-9]+s/g, "");
 
+  // The live progress line is scaffolding for the run, not part of the answer.
+  bodyContent = bodyContent.replace(/^_turn \d+ · [^_\n]*_\s*$/gm, "").trim();
+
   // Add the cleaned body content
   newBody += bodyContent;
+
+  // Run details footer: what executed this and what it cost.
+  if (usageFooter) {
+    newBody += `\n\n${usageFooter}`;
+  }
 
   return newBody.trim();
 }

@@ -30,6 +30,8 @@ export type UpdateCommentLinkParams = {
   claudeSuccess: boolean;
   /** True when the job was cancelled or timed out rather than failing. */
   cancelled?: boolean;
+  /** Run details footer, already rendered. */
+  usageFooter?: string;
   /** Final assistant text, posted in place of the placeholder. */
   agentAnswer?: string;
   outputFile?: string;
@@ -57,6 +59,7 @@ export async function updateCommentLink(
     useCommitSigning,
     restoredConfigPaths = [],
     cancelled = false,
+    usageFooter,
   } = params;
 
   const { owner, repo } = context.repository;
@@ -227,6 +230,7 @@ export async function updateCommentLink(
     actionFailed,
     actionCancelled: cancelled,
     executionDetails,
+    usageFooter,
     jobUrl,
     branchLink,
     prLink,

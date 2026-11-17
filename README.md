@@ -269,6 +269,8 @@ extracts the object from the final message.
 | `use_commit_signing` / `ssh_signing_key` | `false` / – | Signed commits |
 | `display_report` | `true` | Write the run report to the step summary |
 | `progress_updates` | `true` | Rewrite the tracking comment with live progress while Pi runs |
+| `usage_footer` | `true` | Append the run details footer (model, duration, tokens, cost) to the final comment |
+| `price_input_per_million` / `price_output_per_million` | – | USD per million tokens, used to estimate cost when the provider reports none |
 | `show_full_output` | `false` | Log every event — may leak repository content |
 | `path_to_pi_executable` / `path_to_bun_executable` | – | Skip the automatic installs |
 | `additional_permissions` | – | Request extra permissions, e.g. `actions: read` for the CI server |
@@ -310,6 +312,10 @@ tracking comment instead:
 - The job log records every tool call with its arguments (path, pattern, command),
   with file bodies collapsed to `<N chars>` and credentials masked. `show_full_output`
   gives the untrimmed records instead.
+- `usage_footer` (default `true`) closes the answer with a collapsed run summary:
+  model, duration, turns, tokens and an estimated cost. It disappears entirely when
+  there is nothing to report, and `price_input_per_million` /
+  `price_output_per_million` turn tokens into dollars when the provider does not.
 - `display_report` (default `true`) writes the run report to the step summary.
 ### MCP servers
 

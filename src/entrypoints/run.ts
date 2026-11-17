@@ -47,6 +47,7 @@ import { validateBranchName } from "../github/operations/branch";
 import { collectActionInputsPresence } from "./collect-inputs";
 import { updateCommentLink } from "./update-comment-link";
 import { buildOutcomeNotice } from "../github/operations/comments/agent-answer";
+import { buildUsageFooter } from "../github/operations/comments/usage-footer";
 import { createJobRunLink } from "../github/operations/comments/common";
 import {
   buildProgressBody,
@@ -65,6 +66,12 @@ import { parsePiOptions } from "../../base-action/src/pi/options";
 import { bootstrapPiProvider } from "../../base-action/src/pi/provider";
 import { writePiMcpConfig } from "../../base-action/src/pi/mcp";
 import { setExecutionFileOutputIfPresent } from "../../base-action/src/execution-file";
+
+/** Optional USD-per-million price, used to estimate a run's cost. */
+function parsePrice(raw?: string): number | undefined {
+  const value = Number.parseFloat((raw ?? "").trim());
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
+}
 
 // Exported for unit testing. `set -o pipefail` makes the package manager's
 // non-zero exit propagate through the pipe so the retry logic actually
@@ -173,6 +180,7 @@ async function run() {
   let runCancelled = false;
   let runError: string | undefined;
   let runStartedAt: number | undefined;
+  let usageFooter: string | undefined;
   const abortRun = new AbortController();
   const signalHandlers: Array<[NodeJS.Signals, () => void]> = [];
   for (const signal of ["SIGTERM", "SIGINT"] as const) {
@@ -462,6 +470,37 @@ async function run() {
     runError = piResult.error;
     runCancelled = piResult.cancelled === true;
 
+    // The run details footer: executor, model, duration, tokens, cost.
+    usageFooter =
+      context.inputs.usageFooter === false
+        ? undefined
+        : buildUsageFooter({
+            provider: process.env.PI_PROVIDER,
+            model: process.env.PI_MODEL,
+            ...(runStartedAt !== undefined
+              ? { durationMs: Date.now() - runStartedAt }
+              : {}),
+            ...(piResult.numTurns !== undefined ? { turns: piResult.numTurns } : {}),
+            ...(piResult.usage ? { inputTokens: piResult.usage.input } : {}),
+            ...(piResult.usage ? { outputTokens: piResult.usage.output } : {}),
+            ...(piResult.usage ? { totalTokens: piResult.usage.totalTokens } : {}),
+            ...(piResult.usage ? { costUsd: piResult.usage.cost } : {}),
+            ...(parsePrice(process.env.INPUT_PRICE_INPUT_PER_MILLION) !== undefined
+              ? {
+                  priceInputPerMillion: parsePrice(
+                    process.env.INPUT_PRICE_INPUT_PER_MILLION,
+                  ),
+                }
+              : {}),
+            ...(parsePrice(process.env.INPUT_PRICE_OUTPUT_PER_MILLION) !== undefined
+              ? {
+                  priceOutputPerMillion: parsePrice(
+                    process.env.INPUT_PRICE_OUTPUT_PER_MILLION,
+                  ),
+                }
+              : {}),
+          });
+
     // A failed run still has to say something: the placeholder reads as "still
     // working" long after the job is gone, which is the worst possible answer.
     if (!claudeSuccess && !agentAnswer) {
@@ -524,6 +563,7 @@ async function run() {
           claudeSuccess,
           agentAnswer,
           cancelled: runCancelled,
+          usageFooter,
           outputFile: executionFile,
           prepareSuccess,
           prepareError,
