@@ -190,7 +190,9 @@ a schema and read the result as an output:
     prompt: |
       Triage this issue. Reply with JSON only.
 
-- run: echo '${{ steps.pi.outputs.structured_output }}' | jq -r .severity
+- run: echo "$OUTPUT" | jq -r .severity
+  env:
+    OUTPUT: ${{ steps.pi.outputs.structured_output }}
 ```
 
 Pi has no schema flag, so the action appends the schema to the prompt and
