@@ -1,0 +1,178 @@
+name: "Pi Agent Base Action"
+description: "Run the Pi coding agent non-interactively in GitHub Actions workflows"
+branding:
+  icon: "terminal"
+  color: "purple"
+
+inputs:
+  prompt:
+    description: "The prompt to send to Pi (mutually exclusive with prompt_file)"
+    required: false
+  prompt_file:
+    description: "Path to a file containing the prompt to send to Pi (mutually exclusive with prompt)"
+    required: false
+  settings:
+    description: "Pi settings as a JSON string or the path to a settings JSON file"
+    required: false
+  pi_args:
+    description: "Additional arguments passed to the Pi CLI (e.g., '--thinking high')"
+    required: false
+  provider:
+    description: "Pi provider id, e.g. deepseek"
+    required: false
+  model:
+    description: "Model id or pattern, e.g. deepseek-chat"
+    required: false
+  api_key:
+    description: "API key for the provider. Passed through the environment, never written to disk."
+    required: false
+  base_url:
+    description: "Base URL for an OpenAI-compatible endpoint"
+    required: false
+  api_style:
+    description: "Wire protocol for the endpoint"
+    required: false
+    default: "openai-completions"
+  agent_dir:
+    description: "Pi agent directory. Defaults to ~/.pi/agent."
+    required: false
+  allowed_tools:
+    description: "Comma-separated allowlist of Pi tools"
+    required: false
+  disallowed_tools:
+    description: "Comma-separated denylist of Pi tools"
+    required: false
+  no_tools:
+    description: "Run Pi with no tools at all"
+    required: false
+    default: "false"
+  max_turns:
+    description: "Abort the run when Pi exceeds this many assistant turns"
+    required: false
+  system_prompt:
+    description: "Replace Pi's default system prompt"
+    required: false
+  append_system_prompt:
+    description: "Append text (or a file path) to Pi's system prompt"
+    required: false
+  trust_project_files:
+    description: "Trust project-local .pi/ configuration for this run"
+    required: false
+    default: "false"
+  path_to_pi_executable:
+    description: "Path to a Pi executable. Skips the automatic npm install."
+    required: false
+  path_to_bun_executable:
+    description: "Path to a Bun executable. Skips the automatic Bun install."
+    required: false
+  show_full_output:
+    description: "Show the full Pi event stream"
+    required: false
+    default: "false"
+
+outputs:
+  conclusion:
+    description: "Execution status of the Pi agent ('success' or 'failure')"
+    value: ${{ steps.run_pi.outputs.conclusion }}
+  execution_file:
+    description: "Path to the Pi event stream output file"
+    value: ${{ steps.run_pi.outputs.execution_file }}
+  session_id:
+    description: "The Pi session ID, usable with --session to continue the conversation"
+    value: ${{ steps.run_pi.outputs.session_id }}
+  structured_output:
+    description: "JSON string with the structured output fields, when the prompt asked for a JSON object"
+    value: ${{ steps.run_pi.outputs.structured_output }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Bun
+      if: inputs.path_to_bun_executable == ''
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version: 1.4.4
+        no-cache: true
+
+    - name: Setup Custom Bun Path
+      if: inputs.path_to_bun_executable != ''
+      shell: bash
+      env:
+        PATH_TO_BUN_EXECUTABLE: ${{ inputs.path_to_bun_executable }}
+      run: |
+        echo "Using custom Bun executable: $PATH_TO_BUN_EXECUTABLE"
+        BUN_DIR=$(dirname "$PATH_TO_BUN_EXECUTABLE")
+        echo "$BUN_DIR" >> "$GITHUB_PATH"
+
+    - name: Install Dependencies
+      shell: bash
+      run: |
+        cd ${GITHUB_ACTION_PATH}
+        bun install --production
+
+    - name: Install Pi
+      shell: bash
+      env:
+        PATH_TO_PI_EXECUTABLE: ${{ inputs.path_to_pi_executable }}
+      run: |
+        if [ -z "$PATH_TO_PI_EXECUTABLE" ]; then
+          PI_VERSION="1.5.0"
+          echo "Installing Pi v${PI_VERSION}..."
+          for attempt in 1 2 3; do
+            echo "Installation attempt $attempt..."
+            if npm install -g --ignore-scripts "@earendil-works/pi-coding-agent@${PI_VERSION}"; then
+              break
+            fi
+            if [ $attempt -eq 3 ]; then
+              echo "Failed to install Pi after 3 attempts"
+              exit 1
+            fi
+            echo "Installation failed, retrying..."
+            sleep 5
+          done
+        else
+          echo "Using custom Pi executable: $PATH_TO_PI_EXECUTABLE"
+          echo "$(dirname "$PATH_TO_PI_EXECUTABLE")" >> "$GITHUB_PATH"
+        fi
+
+    - name: Run Pi Agent
+      shell: bash
+      id: run_pi
+      run: |
+        # Bash reads this script as it runs. The braces and exit make it read the
+        # rest first and stop there. With exec instead, cancelling the run would
+        # interrupt Bun at once, before it can clean up.
+        {
+          bun --no-env-file \
+            --config="${GITHUB_ACTION_PATH}/bunfig.toml" \
+            --tsconfig-override="${GITHUB_ACTION_PATH}/tsconfig.json" \
+            run ${GITHUB_ACTION_PATH}/src/index.ts
+          exit
+        }
+      env:
+        BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0"
+
+        PI_AGENT_ACTION: "1"
+        INPUT_PROMPT: ${{ inputs.prompt }}
+        INPUT_PROMPT_FILE: ${{ inputs.prompt_file }}
+        INPUT_SETTINGS: ${{ inputs.settings }}
+        INPUT_PI_ARGS: ${{ inputs.pi_args }}
+        INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
+        INPUT_DISALLOWED_TOOLS: ${{ inputs.disallowed_tools }}
+        INPUT_NO_TOOLS: ${{ inputs.no_tools }}
+        INPUT_MAX_TURNS: ${{ inputs.max_turns }}
+        INPUT_SYSTEM_PROMPT: ${{ inputs.system_prompt }}
+        INPUT_APPEND_SYSTEM_PROMPT: ${{ inputs.append_system_prompt }}
+        INPUT_TRUST_PROJECT_FILES: ${{ inputs.trust_project_files }}
+        INPUT_PATH_TO_PI_EXECUTABLE: ${{ inputs.path_to_pi_executable }}
+        PATH_TO_PI_EXECUTABLE: ${{ inputs.path_to_pi_executable }}
+        INPUT_PATH_TO_BUN_EXECUTABLE: ${{ inputs.path_to_bun_executable }}
+        INPUT_SHOW_FULL_OUTPUT: ${{ inputs.show_full_output }}
+
+        # Provider. The secret reaches Pi through the child environment.
+        PI_PROVIDER: ${{ inputs.provider }}
+        PI_MODEL: ${{ inputs.model }}
+        PI_BASE_URL: ${{ inputs.base_url }}
+        PI_API_STYLE: ${{ inputs.api_style }}
+        PI_API_KEY: ${{ inputs.api_key }}
+        PI_CODING_AGENT_DIR: ${{ inputs.agent_dir }}

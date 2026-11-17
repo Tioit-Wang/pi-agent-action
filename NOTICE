@@ -1,0 +1,21 @@
+Pi Agent Action
+Copyright (c) 2026 contributors
+
+This product is a derivative work of claude-code-action
+(https://github.com/anthropics/claude-code-action),
+Copyright (c) 2025 Anthropic, PBC, licensed under the MIT License.
+
+Upstream source was cloned at commit cc98b3a and then adapted:
+
+* The Claude Agent SDK execution layer (base-action/src/run-claude.ts,
+  run-claude-sdk.ts, parse-sdk-options.ts, setup-claude-code-settings.ts,
+  install-plugins.ts, workload-identity.ts) was replaced with a runner that
+  spawns the Pi coding agent CLI (base-action/src/pi/).
+* Provider bootstrap, JSONL event parsing, structured-output extraction and the
+  step summary report were written for this project.
+* Anthropic-specific provider inputs (Bedrock, Vertex, Foundry, workload
+  identity federation) and Claude Code plugins were removed.
+* GitHub-facing behavior (triggers, modes, branches, pull requests,
+  permissions, comments) is retained from upstream.
+
+The original MIT license text is retained in LICENSE.

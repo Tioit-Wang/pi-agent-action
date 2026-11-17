@@ -1,0 +1,321 @@
+name: "Pi Agent Action"
+description: "Run the Pi coding agent on issues and pull requests. Auto-detects tag mode (@pi mentions) and agent mode (implement or review code)."
+branding:
+  icon: "terminal"
+  color: "purple"
+
+inputs:
+  trigger_phrase:
+    description: "The trigger phrase to look for in comments or issue body"
+    required: false
+    default: "@pi"
+  assignee_trigger:
+    description: "The assignee username that triggers the action (e.g. pi)"
+    required: false
+  label_trigger:
+    description: "The label that triggers the action"
+    required: false
+    default: "pi"
+  base_branch:
+    description: "The branch to use as the base/source when creating new branches (defaults to repository default branch)"
+    required: false
+  branch_prefix:
+    description: "The prefix to use for Pi branches (defaults to 'pi/')"
+    required: false
+    default: "pi/"
+  branch_name_template:
+    description: "Template for branch naming. Variables: {{prefix}}, {{entityType}}, {{entityNumber}}, {{timestamp}}, {{sha}}, {{label}}, {{description}}"
+    required: false
+    default: ""
+  allowed_bots:
+    description: "Comma-separated list of allowed bot usernames, or '*' to allow all bots. WARNING: on public repos '*' lets external Apps invoke this action with prompts they control."
+    required: false
+    default: ""
+  allowed_non_write_users:
+    description: "Comma-separated list of usernames to allow without write permissions, or '*' to allow all users. Only works when github_token is provided. Bypasses security checks; use only with minimal permissions."
+    required: false
+    default: ""
+  restrict_untrusted_prs:
+    description: "On pull requests whose author does not have write access, remove the tools that run or mutate code from the checkout."
+    required: false
+    default: "true"
+  include_comments_by_actor:
+    description: "Comma-separated list of actor usernames to INCLUDE in comments. Supports wildcards such as '*[bot]'."
+    required: false
+    default: ""
+  exclude_comments_by_actor:
+    description: "Comma-separated list of actor usernames to EXCLUDE in comments. Supports wildcards such as 'renovate[bot]'."
+    required: false
+    default: ""
+
+  # Prompt
+  prompt:
+    description: "Instructions for Pi. Can be a direct prompt or a custom template."
+    required: false
+    default: ""
+  settings:
+    description: "Pi settings as a JSON string or the path to a settings JSON file"
+    required: false
+    default: ""
+
+  # Auth and provider
+  provider:
+    description: "Pi provider id, e.g. deepseek, openai, anthropic, openrouter. Leave empty to use Pi's own catalog default."
+    required: false
+    default: ""
+  model:
+    description: "Model id or pattern, e.g. deepseek-chat or anthropic/claude-sonnet-5."
+    required: false
+    default: ""
+  api_key:
+    description: "API key for the selected provider. Passed to Pi through the environment and never written to disk."
+    required: false
+  base_url:
+    description: "Base URL for an OpenAI-compatible endpoint. Written into models.json with the api_key referenced by environment variable."
+    required: false
+    default: ""
+  api_style:
+    description: "Wire protocol for the endpoint, e.g. openai-completions or openai-responses."
+    required: false
+    default: "openai-completions"
+  agent_dir:
+    description: "Pi agent directory (sessions, settings.json, models.json, auth.json). Defaults to ~/.pi/agent."
+    required: false
+    default: ""
+  github_token:
+    description: "GitHub token with repo and pull request permissions (optional if using a GitHub App)"
+    required: false
+
+  # Execution
+  pi_args:
+    description: "Additional arguments passed to the Pi CLI, e.g. '--thinking high'."
+    required: false
+    default: ""
+  allowed_tools:
+    description: "Comma-separated allowlist of Pi tools, e.g. 'read,grep,find,ls,edit,write'."
+    required: false
+    default: ""
+  disallowed_tools:
+    description: "Comma-separated denylist of Pi tools."
+    required: false
+    default: ""
+  no_tools:
+    description: "Run Pi with no tools at all (read-only analysis)."
+    required: false
+    default: "false"
+  max_turns:
+    description: "Abort the run when Pi exceeds this many assistant turns. Pi has no CLI equivalent, so the action enforces it."
+    required: false
+    default: ""
+  system_prompt:
+    description: "Replace Pi's default system prompt."
+    required: false
+    default: ""
+  append_system_prompt:
+    description: "Append text (or a file path) to Pi's system prompt."
+    required: false
+    default: ""
+  trust_project_files:
+    description: "Trust project-local .pi/ configuration for this run. Leave false for untrusted content."
+    required: false
+    default: "false"
+  path_to_pi_executable:
+    description: "Path to a Pi executable. Skips the automatic npm install."
+    required: false
+    default: ""
+  path_to_bun_executable:
+    description: "Path to a Bun executable. Skips the automatic Bun install."
+    required: false
+    default: ""
+  additional_permissions:
+    description: "Additional GitHub permissions to request, e.g. 'actions: read'"
+    required: false
+    default: ""
+  use_sticky_comment:
+    description: "Use one comment to deliver issue/PR comments"
+    required: false
+    default: "false"
+  classify_inline_comments:
+    description: "Classify buffered inline review comments before posting. Not ported to Pi yet; keep it false."
+    required: false
+    default: "false"
+  display_report:
+    description: "Write the Pi agent report to the GitHub Step Summary"
+    required: false
+    default: "true"
+  show_full_output:
+    description: "Show the full Pi event stream. WARNING: may include repository content and tool output in public logs."
+    required: false
+    default: "false"
+  use_commit_signing:
+    description: "Sign commits with GitHub's signature verification"
+    required: false
+    default: "false"
+  ssh_signing_key:
+    description: "SSH private key for signing commits. Takes precedence over use_commit_signing."
+    required: false
+    default: ""
+  bot_id:
+    description: "GitHub user ID used for git operations"
+    required: false
+    default: "41898282"
+  bot_name:
+    description: "GitHub username used for git operations"
+    required: false
+    default: "pi[bot]"
+  track_progress:
+    description: "Force tag mode with a tracking comment for pull_request and issue events"
+    required: false
+    default: "false"
+  include_fix_links:
+    description: "Include 'Fix this' links in review feedback"
+    required: false
+    default: "true"
+
+outputs:
+  conclusion:
+    description: "Execution status of the Pi agent ('success' or 'failure')"
+    value: ${{ steps.run.outputs.conclusion }}
+  execution_file:
+    description: "Path to the Pi event stream output file"
+    value: ${{ steps.run.outputs.execution_file }}
+  branch_name:
+    description: "The branch created for this execution"
+    value: ${{ steps.run.outputs.branch_name }}
+  github_token:
+    description: "The GitHub token used by the action"
+    value: ${{ steps.run.outputs.github_token }}
+  structured_output:
+    description: "JSON string with the structured output fields, when the prompt asked for a JSON object"
+    value: ${{ steps.run.outputs.structured_output }}
+  session_id:
+    description: "The Pi session ID, usable with --session to continue the conversation"
+    value: ${{ steps.run.outputs.session_id }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Bun
+      id: setup-bun
+      if: inputs.path_to_bun_executable == ''
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version: 1.4.4
+        token: ${{ inputs.github_token || github.token }}
+        no-cache: true
+
+    - name: Setup Custom Bun Path
+      if: inputs.path_to_bun_executable != ''
+      shell: bash
+      env:
+        PATH_TO_BUN_EXECUTABLE: ${{ inputs.path_to_bun_executable }}
+      run: |
+        echo "Using custom Bun executable: $PATH_TO_BUN_EXECUTABLE"
+        BUN_DIR=$(dirname "$PATH_TO_BUN_EXECUTABLE")
+        echo "$BUN_DIR" >> "$GITHUB_PATH"
+
+    - name: Install Dependencies
+      shell: bash
+      run: |
+        cd ${GITHUB_ACTION_PATH}
+        bun install --production
+
+    - name: Run Pi Agent Action
+      id: run
+      shell: bash
+      run: |
+        {
+          bun --no-env-file \
+            --config="${GITHUB_ACTION_PATH}/bunfig.toml" \
+            --tsconfig-override="${GITHUB_ACTION_PATH}/tsconfig.json" \
+            run ${GITHUB_ACTION_PATH}/src/entrypoints/run.ts
+          exit
+        }
+      env:
+        BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0"
+
+        # Mode and triggers
+        PROMPT: ${{ inputs.prompt }}
+        TRIGGER_PHRASE: ${{ inputs.trigger_phrase }}
+        ASSIGNEE_TRIGGER: ${{ inputs.assignee_trigger }}
+        LABEL_TRIGGER: ${{ inputs.label_trigger }}
+        BASE_BRANCH: ${{ inputs.base_branch }}
+        BRANCH_PREFIX: ${{ inputs.branch_prefix }}
+        BRANCH_NAME_TEMPLATE: ${{ inputs.branch_name_template }}
+        OVERRIDE_GITHUB_TOKEN: ${{ inputs.github_token }}
+        DEFAULT_WORKFLOW_TOKEN: ${{ github.token }}
+        ALLOWED_BOTS: ${{ inputs.allowed_bots }}
+        ALLOWED_NON_WRITE_USERS: ${{ inputs.allowed_non_write_users }}
+        RESTRICT_UNTRUSTED_PRS: ${{ inputs.restrict_untrusted_prs }}
+        INCLUDE_COMMENTS_BY_ACTOR: ${{ inputs.include_comments_by_actor }}
+        EXCLUDE_COMMENTS_BY_ACTOR: ${{ inputs.exclude_comments_by_actor }}
+        GITHUB_RUN_ID: ${{ github.run_id }}
+        USE_STICKY_COMMENT: ${{ inputs.use_sticky_comment }}
+        CLASSIFY_INLINE_COMMENTS: ${{ inputs.classify_inline_comments }}
+        USE_COMMIT_SIGNING: ${{ inputs.use_commit_signing }}
+        SSH_SIGNING_KEY: ${{ inputs.ssh_signing_key }}
+        BOT_ID: ${{ inputs.bot_id }}
+        BOT_NAME: ${{ inputs.bot_name }}
+        TRACK_PROGRESS: ${{ inputs.track_progress }}
+        INCLUDE_FIX_LINKS: ${{ inputs.include_fix_links }}
+        ADDITIONAL_PERMISSIONS: ${{ inputs.additional_permissions }}
+        ALL_INPUTS: ${{ toJson(inputs) }}
+
+        # Prompt and settings
+        INPUT_PROMPT_FILE: ${{ runner.temp }}/pi-prompts/pi-prompt.txt
+        INPUT_SETTINGS: ${{ inputs.settings }}
+        INPUT_SHOW_FULL_OUTPUT: ${{ inputs.show_full_output }}
+        DISPLAY_REPORT: ${{ inputs.display_report }}
+
+        # Pi CLI
+        INPUT_PI_ARGS: ${{ inputs.pi_args }}
+        INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
+        INPUT_DISALLOWED_TOOLS: ${{ inputs.disallowed_tools }}
+        INPUT_NO_TOOLS: ${{ inputs.no_tools }}
+        INPUT_MAX_TURNS: ${{ inputs.max_turns }}
+        INPUT_SYSTEM_PROMPT: ${{ inputs.system_prompt }}
+        INPUT_APPEND_SYSTEM_PROMPT: ${{ inputs.append_system_prompt }}
+        INPUT_TRUST_PROJECT_FILES: ${{ inputs.trust_project_files }}
+        INPUT_PATH_TO_PI_EXECUTABLE: ${{ inputs.path_to_pi_executable }}
+        PATH_TO_PI_EXECUTABLE: ${{ inputs.path_to_pi_executable }}
+        INPUT_PATH_TO_BUN_EXECUTABLE: ${{ inputs.path_to_bun_executable }}
+
+        # Provider. The secret reaches Pi through the child environment; the
+        # action writes only `$PI_PROVIDER_API_KEY` into models.json.
+        PI_PROVIDER: ${{ inputs.provider }}
+        PI_MODEL: ${{ inputs.model }}
+        PI_BASE_URL: ${{ inputs.base_url }}
+        PI_API_STYLE: ${{ inputs.api_style }}
+        PI_API_KEY: ${{ inputs.api_key }}
+        PI_CODING_AGENT_DIR: ${{ inputs.agent_dir }}
+
+    - name: Cleanup SSH signing key
+      if: always() && inputs.ssh_signing_key != ''
+      shell: bash
+      run: |
+        {
+          BUN_BIN="${GITHUB_ACTION_PATH}/bin/bun"
+          [ -x "$BUN_BIN" ] || BUN_BIN="bun"
+          "$BUN_BIN" --no-env-file \
+            --config="${GITHUB_ACTION_PATH}/bunfig.toml" \
+            --tsconfig-override="${GITHUB_ACTION_PATH}/tsconfig.json" \
+            run ${GITHUB_ACTION_PATH}/src/entrypoints/cleanup-ssh-signing.ts
+          exit
+        }
+      env:
+        BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0"
+
+    - name: Revoke app token
+      if: always() && inputs.github_token == '' && steps.run.outputs.github_token != '' && steps.run.outputs.skipped_due_to_workflow_validation_mismatch != 'true'
+      shell: bash
+      run: |
+        curl -q -L \
+          --connect-timeout 5 \
+          --max-time 10 \
+          -X DELETE \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer $APP_TOKEN" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          ${GITHUB_API_URL:-https://api.github.com}/installation/token || true
+      env:
+        APP_TOKEN: ${{ steps.run.outputs.github_token }}
