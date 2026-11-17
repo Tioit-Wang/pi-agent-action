@@ -30,7 +30,7 @@ const GIT_PUSH_WRAPPER = `${process.env.GITHUB_ACTION_PATH}/scripts/git-push.sh`
 const GIT_COMMIT_WRAPPER = `${process.env.GITHUB_ACTION_PATH}/scripts/git-commit.sh`;
 
 /** Filename for the user request file, read by the SDK runner */
-const USER_REQUEST_FILENAME = "claude-user-request.txt";
+const USER_REQUEST_FILENAME = "pi-user-request.txt";
 
 // Tag mode defaults - these tools are needed for tag mode to function.
 // Edit/MultiEdit/Write are intentionally omitted: the permission mode allows file
@@ -984,10 +984,10 @@ export async function createPrompt(
 
     // Clear any stale prompt files from a prior invocation. RUNNER_TEMP is documented
     // to be emptied between jobs, but on non-ephemeral self-hosted runners this is
-    // not reliably honored — a stale claude-user-request.txt left behind by a prior
+    // not reliably honored — a stale pi-user-request.txt left behind by a prior
     // mention-mode invocation would not be overwritten by a subsequent agent-mode
     // invocation, and would leak into the model's context.
-    const promptDir = `${process.env.RUNNER_TEMP || "/tmp"}/claude-prompts`;
+    const promptDir = `${process.env.RUNNER_TEMP || "/tmp"}/pi-prompts`;
     await rm(promptDir, { recursive: true, force: true });
     await mkdir(promptDir, { recursive: true });
 
@@ -1005,7 +1005,7 @@ export async function createPrompt(
     console.log("=======================");
 
     // Write the prompt file
-    await writeFile(`${promptDir}/claude-prompt.txt`, promptContent);
+    await writeFile(`${promptDir}/pi-prompt.txt`, promptContent);
 
     // Extract and write the user request separately for SDK multi-block messaging
     // This allows the CLI to process slash commands (e.g., "@claude /review-pr")
