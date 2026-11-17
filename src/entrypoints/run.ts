@@ -158,6 +158,8 @@ async function run() {
   let baseBranch: string | undefined;
   let executionFile: string | undefined;
   let claudeSuccess = false;
+  // Final assistant text, posted in place of the placeholder comment body.
+  let agentAnswer: string | undefined;
   let prepareSuccess = true;
   let prepareError: string | undefined;
   let context: GitHubContext | undefined;
@@ -387,6 +389,7 @@ async function run() {
       core.setOutput("skipped_due_to_workflow_validation_mismatch", "false");
     }
 
+    agentAnswer = piResult.finalText;
     claudeSuccess = piResult.conclusion === "success";
     executionFile = piResult.executionFile;
 
@@ -433,6 +436,7 @@ async function run() {
           context,
           octokit,
           claudeSuccess,
+          agentAnswer,
           outputFile: executionFile,
           prepareSuccess,
           prepareError,

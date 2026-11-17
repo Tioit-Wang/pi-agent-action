@@ -27,6 +27,8 @@ export type UpdateCommentLinkParams = {
   context: ParsedGitHubContext;
   octokit: Octokits;
   claudeSuccess: boolean;
+  /** Final assistant text, posted in place of the placeholder. */
+  agentAnswer?: string;
   outputFile?: string;
   prepareSuccess: boolean;
   prepareError?: string;
@@ -38,6 +40,22 @@ export type UpdateCommentLinkParams = {
    */
   restoredConfigPaths?: string[];
 };
+
+const PLACEHOLDER_ANSWER = "I'll analyze this and get back to you.";
+
+/**
+ * Replace the placeholder the initial comment carries with the agent's final
+ * answer. Only the placeholder line changes; links and headers are rebuilt by
+ * updateCommentBody afterwards.
+ */
+function withAgentAnswer(body: string, answer?: string): string {
+  const trimmed = answer?.trim();
+  if (!trimmed) return body;
+  if (!body.includes(PLACEHOLDER_ANSWER)) {
+    return body.trimEnd() + "\n\n" + trimmed;
+  }
+  return body.replace(PLACEHOLDER_ANSWER, trimmed);
+}
 
 export async function updateCommentLink(
   params: UpdateCommentLinkParams,
@@ -114,7 +132,9 @@ export async function updateCommentLink(
     throw finalError;
   }
 
-  const currentBody = comment.body ?? "";
+  // The agent is not required to drive the comment through a tool: when it
+  // produced a final answer, put it where the placeholder was.
+  const currentBody = withAgentAnswer(comment.body ?? "", params.agentAnswer);
 
   // Check if we need to add branch link for new branches
   const { shouldDeleteBranch, branchLink } = await checkAndCommitOrDeleteBranch(
