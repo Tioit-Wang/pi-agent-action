@@ -262,7 +262,9 @@ async function run() {
               noTools: true,
               approveProject: false,
               showFullOutput: process.env.INPUT_SHOW_FULL_OUTPUT,
-              maxTurns: "1",
+              // No tools and no turn budget: the answer is a single message, and a
+              // cap this low kills the run before Pi can settle that message.
+              maxTurns: "",
             }),
             env: providerConfig.env,
             piExecutable,
