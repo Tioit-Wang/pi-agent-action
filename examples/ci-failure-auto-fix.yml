@@ -1,117 +1,53 @@
-name: Auto Fix CI Failures
-
-# ⚠️ SECURITY NOTE
+# After a failing workflow, explain the failure on the PR — or fix it when it is
+# mechanical.
 #
-# This workflow checks out the PR branch and runs build/test commands
-# (npm, bun, etc.) against it with elevated permissions (contents:write,
-# id-token:write). This means code from the PR branch executes in a
-# trusted context with access to secrets and the ability to push to the
-# repository.
-#
-# Only use this workflow in repositories where everyone with write access
-# is fully trusted with these permissions. Do not use this in repositories
-# that accept contributions from untrusted or semi-trusted collaborators.
-#
-# The pull_requests[0] check below limits this to same-repo PRs (fork PRs
-# are excluded), but anyone who can push a branch to this repository can
-# control what code runs here.
+# `additional_permissions: actions: read` is what installs the github_ci MCP
+# server; without it the agent cannot read job logs.
+name: Pi CI Failure Triage
 
 on:
   workflow_run:
-    workflows: ["CI"]
-    types:
-      - completed
-
-permissions:
-  contents: write
-  pull-requests: write
-  actions: read
-  issues: write
-  id-token: write # Required for OIDC token exchange
+    workflows: [CI]
+    types: [completed]
 
 jobs:
-  auto-fix:
-    if: |
-      github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.pull_requests[0] &&
-      !startsWith(github.event.workflow_run.head_branch, 'claude-auto-fix-ci-')
+  triage:
+    if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
+          # The base branch, not the failing ref: this job holds a token.
           ref: ${{ github.event.workflow_run.head_branch }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup git identity
-        run: |
-          git config --global user.email "claude[bot]@users.noreply.github.com"
-          git config --global user.name "claude[bot]"
-
-      - name: Create fix branch
-        id: branch
-        env:
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          SAFE_BRANCH=$(printf '%s' "$HEAD_BRANCH" | tr -cd 'a-zA-Z0-9/_.-')
-          BRANCH_NAME="claude-auto-fix-ci-${SAFE_BRANCH}-${RUN_ID}"
-          git checkout -b "$BRANCH_NAME"
-          echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
-
-      - name: Get CI failure details
-        id: failure_details
-        uses: actions/github-script@v7
+      - uses: your-org/pi-agent-action@v1
         with:
-          script: |
-            const run = await github.rest.actions.getWorkflowRun({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: ${{ github.event.workflow_run.id }}
-            });
+          provider: deepseek
+          model: deepseek-chat
+          api_key: ${{ secrets.DEEPSEEK_API_KEY }}
 
-            const jobs = await github.rest.actions.listJobsForWorkflowRun({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: ${{ github.event.workflow_run.id }}
-            });
+          additional_permissions: |
+            actions: read
 
-            const failedJobs = jobs.data.jobs.filter(job => job.conclusion === 'failure');
+          # Explaining a failure needs no mutation. Remove `bash` from this list
+          # (or set no_tools) if the logs may come from a fork.
+          allowed_tools: read,grep,find,ls,bash
+          max_turns: "25"
 
-            let errorLogs = [];
-            for (const job of failedJobs) {
-              const logs = await github.rest.actions.downloadJobLogsForWorkflowRun({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                job_id: job.id
-              });
-              errorLogs.push({
-                jobName: job.name,
-                logs: logs.data
-              });
-            }
-
-            return {
-              runUrl: run.data.html_url,
-              failedJobs: failedJobs.map(j => j.name),
-              errorLogs: errorLogs
-            };
-
-      - name: Fix CI failures with Claude
-        id: claude
-        uses: anthropics/claude-code-action@v1
-        with:
           prompt: |
-            /fix-ci 
-            Failed CI Run: ${{ fromJSON(steps.failure_details.outputs.result).runUrl }}
-            Failed Jobs: ${{ join(fromJSON(steps.failure_details.outputs.result).failedJobs, ', ') }}
-            PR Number: ${{ github.event.workflow_run.pull_requests[0].number }}
-            Branch Name: ${{ steps.branch.outputs.branch_name }}
-            Base Branch: ${{ github.event.workflow_run.head_branch }}
-            Repository: ${{ github.repository }}
+            Workflow run ${{ github.event.workflow_run.id }} failed on branch
+            ${{ github.event.workflow_run.head_branch }} in ${{ github.repository }}.
 
-            Error logs:
-            ${{ toJSON(fromJSON(steps.failure_details.outputs.result).errorLogs) }}
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: "--allowedTools 'Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(bun:*),Bash(npm:*),Bash(npx:*),Bash(gh:*)'"
+            1. Read the failing job logs through the GitHub CI tools.
+            2. Identify the first real error (not the cascade after it).
+            3. Decide: is it caused by the change on this branch, or is it flaky
+               infrastructure?
+            4. Post one comment on the pull request for this branch with the
+               cause and the smallest fix. If the fix is a one-line change you
+               are confident about, make it and say what you changed.

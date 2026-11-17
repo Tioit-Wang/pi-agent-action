@@ -1,267 +1,88 @@
-# Frequently Asked Questions (FAQ)
+# FAQ and troubleshooting
 
-This FAQ addresses common questions and gotchas when using the Claude Code GitHub Action.
+## The run fails before `pi` starts
 
-## Triggering and Authentication
+Read the log top-down. The action prints each step's outcome before spawning the
+agent:
 
-### Why doesn't tagging @claude from my automated workflow work?
+1. `Environment validation failed: …` — missing `model`, or no credential for the
+   provider you named. Add `model` and either `api_key` or the provider's own
+   environment variable.
+2. `Writing provider "x" to …/models.json` — expected when `base_url` is set.
+3. `Registered MCP servers in …/mcp.json: github_comment` — expected.
+4. `Running Pi agent (full output hidden for security)...` — the agent started.
 
-The `github-actions` user cannot trigger subsequent GitHub Actions workflows. This is a GitHub security feature to prevent infinite loops. To make this work, you need to use a Personal Access Token (PAT) instead, which will act as a regular user, or use a separate app token of your own. When posting a comment on an issue or PR from your workflow, use your PAT instead of the `GITHUB_TOKEN` generated in your workflow.
+## "No provider credential found"
 
-### Why does Claude say I don't have permission to trigger it?
+Pi never prompts for a login in CI, so the action refuses to start without a
+credential. Three ways to supply one:
 
-Only users with **write permissions** to the repository can trigger Claude. This is a security feature to prevent unauthorized use. Make sure the user commenting has at least write access to the repository.
+- `api_key: ${{ secrets.DEEPSEEK_API_KEY }}`
+- an environment variable Pi reads directly (`ANTHROPIC_API_KEY`,
+  `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, …) — set it at job level
+- a cached `<agent-dir>/auth.json` from a previous `pi auth` run
 
-### Why can't I assign @claude to an issue on my repository?
+## The model is not found
 
-If you're in a public repository, you should be able to assign to Claude without issue. If it's a private organization repository, you can only assign to users in your own organization, which Claude isn't. In this case, you'll need to make a custom user in that case.
+`pi --list-models` shows Pi's bundled catalog. DeepSeek, OpenRouter and most
+gateways are **not** in it; they need the `provider` input so the action writes
+`models.json`. Checks:
 
-### Why am I getting OIDC authentication errors?
+- `provider: deepseek` and `model: deepseek-chat` (id only, without the
+  `provider/` prefix when you also pass `provider`)
+- for an unlisted endpoint, `base_url` must be set
+- `api_style` should stay `openai-completions` unless the endpoint only speaks
+  the responses API
 
-If you're using the default GitHub App authentication, you must add the `id-token: write` permission to your workflow:
+## `pi_args` was rejected
 
-```yaml
-permissions:
-  contents: read
-  id-token: write # Required for OIDC authentication
-```
+`pi_args` is parsed as plain words. Shell operators (`>`, `|`, `&&`) are rejected
+on purpose, because the action never runs `pi` through a shell. Put the values in
+the dedicated inputs instead.
 
-The OIDC token is required in order for the Claude GitHub app to function. If you wish to not use the GitHub app, you can instead provide a `github_token` input to the action for Claude to operate with. See the [Claude Code permissions documentation][perms] for more.
+## Turns ran out
 
-### Why am I getting '403 Resource not accessible by integration' errors?
+`max_turns` is enforced by the action, not by Pi: the process is killed and the
+step fails with the turn count. Raise it, narrow the task, or allow fewer tools.
 
-This error occurs when the action tries to fetch the authenticated user information using a GitHub App installation token. GitHub App tokens have limited access and cannot access the `/user` endpoint, which causes this 403 error.
+## The agent cannot call the GitHub tools
 
-**Solution**: The action now includes `bot_id` and `bot_name` inputs that default to Claude's bot credentials. This avoids the need to fetch user information from the API.
+The GitHub MCP servers are written to `<agent-dir>/mcp.json` every run. Pi names
+their tools `mcp__<server>__<tool>`; if you restricted `allowed_tools` to Pi's
+built-ins, the MCP tools are gone too. Leave `allowed_tools` empty to keep them,
+or list the `mcp__…` names explicitly.
 
-For the default claude[bot]:
+Entry names must match `[A-Za-z0-9_-]+`, and `type: "sse"` is not supported —
+those entries are skipped with a warning.
 
-```yaml
-- uses: anthropics/claude-code-action@v1
-  with:
-    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-    # bot_id and bot_name have sensible defaults, no need to specify
-```
+## Session resume does nothing
 
-For custom bots, specify both:
+Pi keeps sessions inside the agent directory. If the directory is fresh on every
+run (the default), there is nothing to resume. Cache `~/.pi/agent/sessions` first,
+then pass `pi_args: --session-id <id>` with an id from a previous run's
+`session_id` output.
 
-```yaml
-- uses: anthropics/claude-code-action@v1
-  with:
-    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-    bot_id: "12345678" # Your bot's GitHub user ID
-    bot_name: "my-bot" # Your bot's username
-```
+## Comments are not posted
 
-This issue typically only affects agent/automation mode workflows. Interactive workflows (with @claude mentions) don't encounter this issue as they use the comment author's information.
+Two gates must both pass: the actor needs write access (or must be listed in
+`allowed_non_write_users`), and a bot must be listed in `allowed_bots`. Also
+check that the workflow's `permissions:` block grants `issues: write` or
+`pull-requests: write` — the action cannot add what the job token lacks.
 
-## Claude's Capabilities and Limitations
+## The step summary is empty
 
-### Why won't Claude update workflow files when I ask it to?
+`display_report` defaults to `true`, but the summary needs `GITHUB_STEP_SUMMARY`,
+which exists on hosted runners. If the report shows as raw JSON, the formatter hit
+an unexpected shape; the raw event array is in `execution_file`.
 
-The GitHub App for Claude doesn't have workflow write access for security reasons. This prevents Claude from modifying CI/CD configurations that could potentially create unintended consequences. This is something we may reconsider in the future.
+## It works locally but not on the runner
 
-### Why won't Claude rebase my branch?
+The action spawns `pi` as a child process and expects a Linux or macOS runner.
+`pi` must be on `PATH` after installation; if you install it yourself, pass
+`path_to_pi_executable`. Windows runners are not supported.
 
-Claude only creates and pushes commits. It does not merge branches, rebase, force push, or perform other destructive git operations. Specifically, Claude is configured to:
+## What does it cost?
 
-- Never push to branches other than where it was invoked (either its own branch or the PR branch)
-- Never force push or perform destructive operations
-
-This restriction is enforced in Claude's system prompt, so it applies even if you grant the underlying git tools (for example `--allowedTools "Bash(git rebase:*)"`). In that case Claude will still decline rebase requests and explain the limitation rather than running the command.
-
-If you need to rebase, do it yourself locally — or with the Claude Code CLI outside of this action — and push the result.
-
-### Why won't Claude create a pull request?
-
-Claude doesn't create PRs by default. Instead, it pushes commits to a branch and provides a link to a pre-filled PR submission page. This approach ensures your repository's branch protection rules are still adhered to and gives you final control over PR creation.
-
-### Can Claude see my GitHub Actions CI results?
-
-Yes! Claude can access GitHub Actions workflow runs, job logs, and test results on the PR where it's tagged. To enable this:
-
-1. Add `actions: read` permission to your workflow:
-
-   ```yaml
-   permissions:
-     contents: write
-     pull-requests: write
-     issues: write
-     actions: read
-   ```
-
-2. Configure the action with additional permissions:
-   ```yaml
-   - uses: anthropics/claude-code-action@v1
-     with:
-       additional_permissions: |
-         actions: read
-   ```
-
-Claude will then be able to analyze CI failures and help debug workflow issues. For running tests locally before commits, you can still instruct Claude to do so in your request, except on pull requests whose author does not have write access. For pull requests from forks, see [Security](./security.md#running-code-from-pull-requests) for another way to get test results.
-
-### Why does Claude only update one comment instead of creating new ones?
-
-Claude is configured to update a single comment to avoid cluttering PR/issue discussions. All of Claude's responses, including progress updates and final results, will appear in the same comment with checkboxes showing task progress.
-
-## Branch and Commit Behavior
-
-### Why did Claude create a new branch when commenting on a closed PR?
-
-Claude's branch behavior depends on the context:
-
-- **Open PRs**: Pushes directly to the existing PR branch
-- **Closed/Merged PRs**: Creates a new branch (cannot push to closed PR branches)
-- **Issues**: Always creates a new branch with a timestamp
-
-### Why are my commits shallow/missing history?
-
-For performance, Claude uses shallow clones:
-
-- PRs: `--depth=20` (last 20 commits)
-- New branches: `--depth=1` (single commit)
-
-If you need full history, you can configure this in your workflow before calling Claude in the `actions/checkout` step.
-
-```
-- uses: actions/checkout@v6
-  depth: 0 # will fetch full repo history
-```
-
-## Configuration and Tools
-
-### How does automatic mode detection work?
-
-The action intelligently detects whether to run in interactive mode or automation mode:
-
-- **With `prompt` input**: Runs in automation mode - executes immediately without waiting for @claude mentions
-- **Without `prompt` input**: Runs in interactive mode - waits for @claude mentions in comments
-
-This automatic detection eliminates the need to manually configure modes.
-
-Example:
-
-```yaml
-# Automation mode - runs automatically
-prompt: "Review this PR for security vulnerabilities"
-# Interactive mode - waits for @claude mention
-# (no prompt provided)
-```
-
-### What happened to `direct_prompt` and `custom_instructions`?
-
-**These inputs are deprecated in v1.0:**
-
-- **`direct_prompt`** → Use `prompt` instead
-- **`custom_instructions`** → Use `claude_args` with `--append-system-prompt` (appends to the default system prompt, matching v0 behavior; `--system-prompt` replaces it entirely)
-
-Migration examples:
-
-```yaml
-# Old (v0.x)
-direct_prompt: "Review this PR"
-custom_instructions: "Focus on security"
-
-# New (v1.0)
-prompt: "Review this PR"
-claude_args: |
-  --append-system-prompt "Focus on security"
-```
-
-### Why doesn't Claude execute my bash commands?
-
-In [auto mode](./usage.md#permission-mode), the default, a safety review decides any Bash command that no allow rule covers, and it can block yours. With `--permission-mode acceptEdits` or `default`, most Bash commands are denied unless allowed. To allow individual bash commands using `claude_args`:
-
-```yaml
-claude_args: |
-  --allowedTools "Bash(npm:*),Bash(git:*)"  # Allows npm and git commands without asking
-```
-
-### Can Claude work across multiple repositories?
-
-No, Claude's GitHub app token is sandboxed to the current repository only. It cannot push to any other repositories. It can, however, read public repositories, but to get access to this, you must configure it with tools to do so.
-
-### Why aren't comments posted as claude[bot]?
-
-Comments appear as claude[bot] when the action uses its built-in authentication. However, if you provide a `github_token` in your workflow, the action will use that token's authentication instead, causing comments to appear under a different username.
-
-**Solution**: Remove `github_token` from your workflow file unless you're using a custom GitHub App.
-
-**Note**: The `use_sticky_comment` feature only works with claude[bot] authentication. If you're using a custom `github_token`, sticky comments won't update properly since they expect the claude[bot] username.
-
-## MCP Servers and Extended Functionality
-
-### What MCP servers are available by default?
-
-Claude Code Action automatically configures two MCP servers:
-
-1. **GitHub MCP server**: For GitHub API operations
-2. **File operations server**: For advanced file manipulation
-
-However, tools from these servers still need to be explicitly allowed via `claude_args` with `--allowedTools`.
-
-## Troubleshooting
-
-### How can I debug what Claude is doing?
-
-Check the GitHub Action log for Claude's run for the full execution trace.
-
-### Why can't I trigger Claude with `@claude-mention` or `claude!`?
-
-The trigger uses word boundaries, so `@claude` must be a complete word. Variations like `@claude-bot`, `@claude!`, or `claude@mention` won't work unless you customize the `trigger_phrase`.
-
-### How can I use custom executables in specialized environments?
-
-For specialized environments like Nix, NixOS, or custom container setups where you need to provide your own executables:
-
-**Using a custom Claude Code executable:**
-
-```yaml
-- uses: anthropics/claude-code-action@v1
-  with:
-    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-    path_to_claude_code_executable: "/path/to/custom/claude"
-    # ... other inputs
-```
-
-**Using a custom Bun executable:**
-
-```yaml
-- uses: anthropics/claude-code-action@v1
-  with:
-    anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-    path_to_bun_executable: "/path/to/custom/bun"
-    # ... other inputs
-```
-
-**Common use cases:**
-
-- Nix/NixOS environments where packages are managed differently
-- Docker containers with pre-installed executables
-- Custom build environments with specific version requirements
-- Debugging specific issues with particular versions
-
-**Important notes:**
-
-- Using an older Claude Code version may cause problems if the action uses newer features
-- Using an incompatible Bun version may cause runtime errors
-- The action will skip automatic installation when custom paths are provided
-- Ensure the custom executables are available in your GitHub Actions environment
-
-## Best Practices
-
-1. **Always specify permissions explicitly** in your workflow file
-2. **Use GitHub Secrets** for API keys - never hardcode them
-3. **Be specific with tool permissions** - only enable what's necessary via `claude_args`
-4. **Test in a separate branch** before using on important PRs
-5. **Monitor Claude's token usage** to avoid hitting API limits
-6. **Review Claude's changes** carefully before merging
-
-## Getting Help
-
-If you encounter issues not covered here:
-
-1. Check the [GitHub Issues](https://github.com/anthropics/claude-code-action/issues)
-2. Review the [example workflows](https://github.com/anthropics/claude-code-action#examples)
-
-[perms]: https://docs.anthropic.com/en/docs/claude-code/settings#permissions
+Whatever your provider charges for the tokens. A triage run is a few thousand
+tokens; an implementation run is more. Bound it with `max_turns`, a small `model`
+for classification, and `no_tools` where the agent only needs to think.

@@ -1,599 +1,105 @@
-# Solutions & Use Cases
+# Recipes
 
-This guide provides complete, ready-to-use solutions for common automation scenarios with Claude Code Action. Each solution includes working examples, configuration details, and expected outcomes.
+Working workflows live in [`examples/`](../examples). Each one is a complete file
+you can copy. This page explains what each solves and which inputs make it work.
 
-## 📋 Table of Contents
+## Mention handler
 
-- [Automatic PR Code Review](#automatic-pr-code-review)
-- [Review Only Specific File Paths](#review-only-specific-file-paths)
-- [Review PRs from External Contributors](#review-prs-from-external-contributors)
-- [Custom PR Review Checklist](#custom-pr-review-checklist)
-- [Scheduled Repository Maintenance](#scheduled-repository-maintenance)
-- [Issue Auto-Triage and Labeling](#issue-auto-triage-and-labeling)
-- [Documentation Sync on API Changes](#documentation-sync-on-api-changes)
-- [Security-Focused PR Reviews](#security-focused-pr-reviews)
+`examples/pi.yml`. The default setup: `@pi` in an issue, a PR, or a review
+comment. Tag mode answers, the tracking comment gets the run link.
 
----
+Why it is safe: the actor needs write access, the workflow declares only the
+permissions it uses, and the checkout is the pull request's head only when the
+author has write access.
 
-## Automatic PR Code Review
+## Issue triage
 
-**When to use:** Automatically review every PR opened or updated in your repository.
+`examples/issue-triage.yml`. Runs on `issues: [opened]`, classifies the report and
+applies labels.
 
-### Basic Example (No Tracking)
+Key inputs:
 
 ```yaml
-name: Claude Auto Review
+no_tools: "true"        # read-only reasoning
+json_schema: |          # structured result
+  {"type":"object","properties":{"labels":{"type":"array","items":{"type":"string"}},"missing":{"type":"string"}},"required":["labels"]}
+```
+
+`no_tools` matters here: the issue body is attacker-controlled on a public
+repository, and a tool-less run can only produce text.
+
+Pair it with `allowed_non_write_users: "*"` so reports from people without write
+access can be triaged — the workflow only has `issues: write`.
+
+## Pull request review
+
+`examples/pr-review.yml`. Runs on `pull_request` and reviews the diff.
+
+```yaml
+track_progress: "true"       # one live comment instead of many
+allowed_tools: read,grep,find,ls
+```
+
+Restricting to read tools means a review can never push. Add `bash` only if you
+want the agent to run tests, and remember untrusted authors lose it anyway.
+
+## CI failure triage
+
+`examples/ci-failure-auto-fix.yml`. Runs after a failed workflow, reads the logs
+through the GitHub CI MCP server, and either explains the failure or pushes a
+fix.
+
+```yaml
+additional_permissions: |
+  actions: read
+```
+
+That is what installs the `github_ci` server. Job logs are text the pull request
+controls, so keep this on trusted branches or combine it with read-only tools.
+
+## Duplicate issue detection
+
+`examples/issue-deduplication.yml`. Compares a new issue against recent ones and
+comments the likely duplicates.
+
+Cheap inputs: a small `model`, `no_tools: "true"`, and a JSON schema listing the
+candidate numbers. The agent never needs the repository.
+
+## Ad-hoc analysis on demand
+
+`examples/manual-code-analysis.yml`. `workflow_dispatch` with a prompt input, for
+"look at this and tell me" requests without touching issues.
+
+```yaml
 on:
-  pull_request:
-    types: [opened, synchronize]
-
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            Please review this pull request with a focus on:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Security implications
-            - Performance considerations
-
-            Note: The PR branch is already checked out in the current working directory.
-
-            Use `gh pr comment` for top-level feedback.
-            Use `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`) to highlight specific code issues.
-            Only post GitHub comments - don't submit review text as messages.
-
-          claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+  workflow_dispatch:
+    inputs:
+      prompt:
+        required: true
 ```
 
-**Key Configuration:**
+## Writing your own
 
-- Triggers on `opened` and `synchronize` (new commits)
-- Always include `REPO` and `PR NUMBER` for context
-- Specify tools for commenting and reviewing
-- PR branch is pre-checked out
-
-**Expected Output:** Claude posts review comments directly to the PR with inline annotations where appropriate.
-
-### Enhanced Example (With Progress Tracking)
-
-Want visual progress tracking for PR reviews? Use `track_progress: true` to get tracking comments like in v0.x:
+Start from the smallest thing that works:
 
 ```yaml
-name: Claude Auto Review with Tracking
-on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
-
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          track_progress: true # ✨ Enables tracking comments
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            Please review this pull request with a focus on:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Security implications
-            - Performance considerations
-
-            Provide detailed feedback using inline comments for specific issues.
-
-          claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+- uses: your-org/pi-agent-action@v1
+  with:
+    provider: deepseek
+    model: deepseek-chat
+    api_key: ${{ secrets.DEEPSEEK_API_KEY }}
+    prompt: |
+      Answer the question in this issue and nothing else.
 ```
 
-**Benefits of Progress Tracking:**
-
-- **Visual Progress Indicators**: Shows "In progress" status with checkboxes
-- **Preserves Full Context**: Automatically includes all PR details, comments, and attachments
-- **Migration-Friendly**: Perfect for teams moving from v0.x who miss tracking comments
-- **Works with Custom Prompts**: Your prompt becomes custom instructions while maintaining GitHub context
-
-**Expected Output:**
-
-1. Claude creates a tracking comment: "Claude Code is reviewing this pull request..."
-2. Updates the comment with progress checkboxes as it works
-3. Posts detailed review feedback with inline annotations
-4. Updates tracking comment to "Completed" when done
-
----
-
-## Review Only Specific File Paths
-
-**When to use:** Review PRs only when specific critical files change.
-
-**Complete Example:**
-
-```yaml
-name: Review Critical Files
-on:
-  pull_request:
-    types: [opened, synchronize]
-    paths:
-      - "src/auth/**"
-      - "src/api/**"
-      - "config/security.yml"
-
-jobs:
-  security-review:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            This PR modifies critical authentication or API files.
-
-            Please provide a security-focused review with emphasis on:
-            - Authentication and authorization flows
-            - Input validation and sanitization
-            - SQL injection or XSS vulnerabilities
-            - API security best practices
-
-            Note: The PR branch is already checked out.
-
-            Post detailed security findings as PR comments.
-
-          claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*)"
-```
-
-**Key Configuration:**
-
-- `paths:` filter triggers only for specific file changes
-- Custom prompt emphasizes security for sensitive areas
-- Useful for compliance or security reviews
-
-**Expected Output:** Security-focused review when critical files are modified.
-
----
-
-## Review PRs from External Contributors
-
-**When to use:** Apply stricter review criteria for external or new contributors.
-
-**Complete Example:**
-
-```yaml
-name: External Contributor Review
-on:
-  pull_request:
-    types: [opened, synchronize]
-
-jobs:
-  external-review:
-    if: github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-            CONTRIBUTOR: ${{ github.event.pull_request.user.login }}
-
-            This is a first-time contribution from @${{ github.event.pull_request.user.login }}.
-
-            Please provide a comprehensive review focusing on:
-            - Compliance with project coding standards
-            - Proper test coverage (unit and integration)
-            - Documentation for new features
-            - Potential breaking changes
-            - License header requirements
-
-            Be welcoming but thorough in your review. Use inline comments for code-specific feedback.
-
-          claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr view:*)"
-```
-
-**Key Configuration:**
-
-- `if:` condition targets specific contributor types
-- Includes contributor username in context
-- Emphasis on onboarding and standards
-
-**Expected Output:** Detailed review helping new contributors understand project standards.
-
----
-
-## Custom PR Review Checklist
-
-**When to use:** Enforce specific review criteria for your team's workflow.
-
-**Complete Example:**
-
-```yaml
-name: PR Review Checklist
-on:
-  pull_request:
-    types: [opened, synchronize]
-
-jobs:
-  checklist-review:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            Review this PR against our team checklist:
-
-            ## Code Quality
-            - [ ] Code follows our style guide
-            - [ ] No commented-out code
-            - [ ] Meaningful variable names
-            - [ ] DRY principle followed
-
-            ## Testing
-            - [ ] Unit tests for new functions
-            - [ ] Integration tests for new endpoints
-            - [ ] Edge cases covered
-            - [ ] Test coverage > 80%
-
-            ## Documentation
-            - [ ] README updated if needed
-            - [ ] API docs updated
-            - [ ] Inline comments for complex logic
-            - [ ] CHANGELOG.md updated
-
-            ## Security
-            - [ ] No hardcoded credentials
-            - [ ] Input validation implemented
-            - [ ] Proper error handling
-            - [ ] No sensitive data in logs
-
-            For each item, check if it's satisfied and comment on any that need attention.
-            Post a summary comment with checklist results.
-
-          claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*)"
-```
-
-**Key Configuration:**
-
-- Structured checklist in prompt
-- Systematic review approach
-- Team-specific criteria
-
-**Expected Output:** Systematic review with checklist results and specific feedback.
-
----
-
-## Scheduled Repository Maintenance
-
-**When to use:** Regular automated maintenance tasks.
-
-**Complete Example:**
-
-```yaml
-name: Weekly Maintenance
-on:
-  schedule:
-    - cron: "0 0 * * 0" # Every Sunday at midnight
-  workflow_dispatch: # Manual trigger option
-
-jobs:
-  maintenance:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: |
-            REPO: ${{ github.repository }}
-
-            Perform weekly repository maintenance:
-
-            1. Check for outdated dependencies in package.json
-            2. Scan for security vulnerabilities using `npm audit`
-            3. Review open issues older than 90 days
-            4. Check for TODO comments in recent commits
-            5. Verify README.md examples still work
-
-            Create a single issue summarizing any findings.
-            If critical security issues are found, also comment on open PRs.
-
-          claude_args: |
-            --allowedTools "Read,Bash(npm:*),Bash(gh issue:*),Bash(git:*)"
-```
-
-**Key Configuration:**
-
-- `schedule:` for automated runs
-- `workflow_dispatch:` for manual triggering
-- Comprehensive tool permissions for analysis
-
-**Expected Output:** Weekly maintenance report as GitHub issue.
-
----
-
-## Issue Auto-Triage and Labeling
-
-**When to use:** Automatically categorize and prioritize new issues.
-
-**Complete Example:**
-
-```yaml
-name: Issue Triage
-on:
-  issues:
-    types: [opened]
-
-jobs:
-  triage:
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: |
-            REPO: ${{ github.repository }}
-            ISSUE NUMBER: ${{ github.event.issue.number }}
-            TITLE: ${{ github.event.issue.title }}
-            BODY: ${{ github.event.issue.body }}
-            AUTHOR: ${{ github.event.issue.user.login }}
-
-            Analyze this new issue and:
-            1. Determine if it's a bug report, feature request, or question
-            2. Assess priority (critical, high, medium, low)
-            3. Suggest appropriate labels
-            4. Check if it duplicates existing issues
-
-            Use ./scripts/gh.sh to interact with GitHub:
-            - `./scripts/gh.sh issue view [number]` to view the issue
-            - `./scripts/gh.sh search issues "query"` to find similar issues
-            - `./scripts/gh.sh label list` to see available labels
-
-            Based on your analysis, add the appropriate labels using:
-            `./scripts/edit-issue-labels.sh --add-label "label1" --add-label "label2"`
-            (the issue number is read automatically from the workflow event)
-
-            If it appears to be a duplicate, post a comment mentioning the original issue.
-
-          claude_args: |
-            --allowedTools "Bash(./scripts/gh.sh:*),Bash(./scripts/edit-issue-labels.sh:*)"
-```
-
-**Key Configuration:**
-
-- Triggered on new issues
-- Issue context in prompt
-- Label management capabilities
-- Requires `scripts/gh.sh` and `scripts/edit-issue-labels.sh` in your repo (see this repo's `scripts/` directory for examples)
-
-**Expected Output:** Automatically labeled and categorized issues.
-
----
-
-## Documentation Sync on API Changes
-
-**When to use:** Keep docs up-to-date when API code changes.
-
-**Complete Example:**
-
-```yaml
-name: Sync API Documentation
-on:
-  pull_request:
-    types: [opened, synchronize]
-    paths:
-      - "src/api/**/*.ts"
-      - "src/routes/**/*.ts"
-
-jobs:
-  doc-sync:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-
-      - uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            This PR modifies API endpoints. Please:
-
-            1. Review the API changes in src/api and src/routes
-            2. Update API.md to document any new or changed endpoints
-            3. Ensure OpenAPI spec is updated if needed
-            4. Update example requests/responses
-
-            Use standard REST API documentation format.
-            Commit any documentation updates to this PR branch.
-
-          claude_args: |
-            --allowedTools "Read,Write,Edit,Bash(git:*)"
-```
-
-**Key Configuration:**
-
-- Path-specific trigger
-- Write permissions for doc updates
-- Git tools for committing
-
-**Expected Output:** API documentation automatically updated with code changes.
-
----
-
-## Security-Focused PR Reviews
-
-**When to use:** Deep security analysis for sensitive repositories.
-
-**Complete Example:**
-
-```yaml
-name: Security Review
-on:
-  pull_request:
-    types: [opened, synchronize]
-
-jobs:
-  security:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      security-events: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Optional: Add track_progress: true for visual progress tracking during security reviews
-          # track_progress: true
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-
-            Perform a comprehensive security review:
-
-            ## OWASP Top 10 Analysis
-            - SQL Injection vulnerabilities
-            - Cross-Site Scripting (XSS)
-            - Broken Authentication
-            - Sensitive Data Exposure
-            - XML External Entities (XXE)
-            - Broken Access Control
-            - Security Misconfiguration
-            - Cross-Site Request Forgery (CSRF)
-            - Using Components with Known Vulnerabilities
-            - Insufficient Logging & Monitoring
-
-            ## Additional Security Checks
-            - Hardcoded secrets or credentials
-            - Insecure cryptographic practices
-            - Unsafe deserialization
-            - Server-Side Request Forgery (SSRF)
-            - Race conditions or TOCTOU issues
-
-            Rate severity as: CRITICAL, HIGH, MEDIUM, LOW, or NONE.
-            Post detailed findings with recommendations.
-
-          claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*)"
-```
-
-**Key Configuration:**
-
-- Security-focused prompt structure
-- OWASP alignment
-- Severity rating system
-
-**Expected Output:** Detailed security analysis with prioritized findings.
-
----
-
-## Tips for All Solutions
-
-### Always Include GitHub Context
-
-```yaml
-prompt: |
-  REPO: ${{ github.repository }}
-  PR NUMBER: ${{ github.event.pull_request.number }}
-  [Your specific instructions]
-```
-
-### Common Tool Permissions
-
-- **PR Comments**: `Bash(gh pr comment:*)`
-- **Inline Comments**: `mcp__github_inline_comment__create_inline_comment` — pass `confirmed: true` to post immediately. When omitted, the comment is buffered and classified after the session ends (real review comments post, test/probe comments are filtered). This prevents subagent test comments from reaching PRs. To disable classification entirely, set `classify_inline_comments: 'false'` on the action.
-- **File Operations**: `Read,Write,Edit`
-- **Git Operations**: `Bash(git:*)`
-
-### Best Practices
-
-- Be specific in your prompts
-- Include expected output format
-- Set clear success criteria
-- Provide context about the repository
-- Use inline comments for code-specific feedback
+Then add only what the task needs, in this order: `no_tools` → `allowed_tools` →
+`json_schema` → `max_turns`. Each one removes a class of failure rather than
+adding a feature.
+
+Prompt tips that matter with Pi specifically:
+
+- The agent can read the repository. Point at files instead of pasting them.
+- `AGENTS.md` is picked up automatically; put repository conventions there
+  instead of in every prompt.
+- Ask for a conclusion, not a transcript. The full event stream is already in
+  `execution_file`.

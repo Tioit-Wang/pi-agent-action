@@ -61,6 +61,7 @@ stream from stdout, and derives everything it reports from those records. See
 | `events.ts` | JSONL framing, event summary (session id, turns, final text, usage, errors) |
 | `options.ts` | Action inputs to `pi` argv; prompt size handling; `max_turns` |
 | `provider.ts` | Agent directory, `models.json` for compatible endpoints |
+| `mcp.ts` | GitHub MCP servers into `<agent-dir>/mcp.json` |
 | `run.ts` | Process lifecycle, `max_turns` enforcement, execution file |
 | `report.ts` | Step-summary report |
 
@@ -136,7 +137,10 @@ empty and export the provider's own environment variable or pass `api_key`.
 ## Differences from claude-code-action
 
 Ported: trigger detection, tag and agent modes, branch creation, PR creation,
-permission checks, comment updates and step reports.
+permission checks, comment updates, step reports, and the GitHub MCP servers
+(`github_comment`, `github_inline_comment`, `github_ci`, `github_file_ops`),
+which are written to `<agent-dir>/mcp.json` and reached as
+`mcp__<server>__<tool>`. Put your own servers in the same file.
 
 Not ported:
 
@@ -144,13 +148,8 @@ Not ported:
 - Claude Code plugins and plugin marketplaces.
 - Inline-review-comment classification (`classify_inline_comments` defaults to
   `false`; the buffered post-step is gone).
-- GitHub MCP servers. `prepareMcpConfig` still builds Claude's `.mcp.json`
-  shape, which Pi does not read from the same place, so the agent currently uses
-  Pi's own tools (`bash`, `read`, `grep`, ...) instead. `gh` on the runner is the
-  reliable GitHub path today.
-- `--json-schema`: Pi has no equivalent flag. The new `json_schema` input appends
-  the schema to the prompt and the object is extracted from the final message,
-  then surfaced as `structured_output`.
+- `--json-schema` has no Pi equivalent: the `json_schema` input appends the
+  schema to the prompt and the object is extracted from the final message.
 - Per-command deny rules (`Bash(npm:*)`). Replaced by removing `bash`, `edit` and
   `write` on untrusted checkouts.
 - Mode-generated Claude CLI flags: `pi_args` from the workflow is what reaches
@@ -167,8 +166,17 @@ bunx tsc --noEmit
 bun test
 ```
 
-`docs/` and `examples/` are inherited from the upstream project and still
-describe Claude Code; treat this README and the code as the source of truth.
+`docs/` and `examples/` are written for this fork and match the code:
+
+| Document | Covers |
+| --- | --- |
+| [docs/setup.md](docs/setup.md) | Provider, first workflow, permissions |
+| [docs/usage.md](docs/usage.md) | Modes, triggers, inputs, outputs, sessions |
+| [docs/configuration.md](docs/configuration.md) | Providers, tools, MCP, settings, cost |
+| [docs/security.md](docs/security.md) | Trust model, untrusted PRs, secrets |
+| [docs/solutions.md](docs/solutions.md) | Recipes and which inputs each needs |
+| [docs/faq.md](docs/faq.md) | Troubleshooting |
+| [examples/](examples) | Copy-paste workflows |
 
 ## License
 

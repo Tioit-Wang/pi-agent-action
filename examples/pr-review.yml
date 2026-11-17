@@ -1,0 +1,50 @@
+# Review a pull request with read-only tools.
+#
+# Untrusted authors lose `bash`, `edit` and `write` automatically, so this
+# workflow cannot be turned into a code execution path by a fork.
+name: Pi PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: your-org/pi-agent-action@v1
+        with:
+          provider: deepseek
+          model: deepseek-chat
+          api_key: ${{ secrets.DEEPSEEK_API_KEY }}
+
+          # One live comment instead of a comment per turn.
+          track_progress: "true"
+
+          # Reviewing never needs to write or run anything.
+          allowed_tools: read,grep,find,ls
+          max_turns: "20"
+
+          prompt: |
+            Review PR #${{ github.event.pull_request.number }} in ${{ github.repository }}.
+
+            The pull request is checked out in the working directory. Use
+            `git diff origin/${{ github.event.pull_request.base.ref }}...HEAD`
+            to see the change, and read the surrounding files before judging it.
+
+            Report, in order of importance:
+            1. correctness bugs, with the file and line
+            2. changes that break an existing contract or test
+            3. security or data-loss risks
+            4. missing tests for new behaviour
+
+            If nothing is wrong, say so plainly. Do not restate the diff.

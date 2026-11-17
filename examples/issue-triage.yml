@@ -1,29 +1,58 @@
-name: Claude Issue Triage
-description: Run Claude Code for issue triage in GitHub Actions
+# Classify a new issue, label it, and reply with what is still missing.
+#
+# Read-only by design: `no_tools` means the issue body can only produce text,
+# which is what you want when anyone can open an issue.
+name: Pi Issue Triage
+
 on:
   issues:
     types: [opened]
 
 jobs:
-  triage-issue:
+  triage:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
       issues: write
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v7
 
-      - name: Run Claude Code for Issue Triage
-        uses: anthropics/claude-code-action@v1
+      - uses: your-org/pi-agent-action@v1
         with:
-          # NOTE: /label-issue requires .claude/commands/label-issue.md and scripts/edit-issue-labels.sh in your repo (see this repo for examples)
-          prompt: "/label-issue REPO: ${{ github.repository }} ISSUE_NUMBER: ${{ github.event.issue.number }}"
+          provider: deepseek
+          model: deepseek-chat
+          api_key: ${{ secrets.DEEPSEEK_API_KEY }}
 
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          allowed_non_write_users: "*" # Required for issue triage workflow, if users without repo write access create issues
+          # Everyone can open an issue; only the workflow's own permissions are
+          # handed to the run.
+          allowed_non_write_users: "*"
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+          no_tools: "true"
+          max_turns: "2"
+
+          json_schema: |
+            {
+              "type": "object",
+              "properties": {
+                "kind": { "type": "string", "enum": ["bug", "feature", "question", "spam"] },
+                "labels": { "type": "array", "items": { "type": "string" } },
+                "missing": { "type": "array", "items": { "type": "string" } },
+                "duplicate_of": { "type": ["integer", "null"] }
+              },
+              "required": ["kind", "labels", "missing"]
+            }
+
+          prompt: |
+            You are triaging issue #${{ github.event.issue.number }} in ${{ github.repository }}.
+
+            Title: ${{ github.event.issue.title }}
+
+            Body:
+            ${{ github.event.issue.body }}
+
+            Decide which kind of report this is, which of these labels apply
+            (bug, needs-info, documentation, performance), and which facts are
+            missing that a maintainer would need to act (version, steps,
+            expected vs actual, logs). Only list a label when the body supports it.

@@ -57,6 +57,7 @@ import { runPi } from "../../base-action/src/pi/run";
 import type { PiRunResult } from "../../base-action/src/pi/run";
 import { parsePiOptions } from "../../base-action/src/pi/options";
 import { bootstrapPiProvider } from "../../base-action/src/pi/provider";
+import { writePiMcpConfig } from "../../base-action/src/pi/mcp";
 import { setExecutionFileOutputIfPresent } from "../../base-action/src/execution-file";
 
 // Exported for unit testing. `set -o pipefail` makes the package manager's
@@ -273,6 +274,10 @@ async function run() {
     });
     const agentDir = providerConfig.agentDir;
     const providerEnv = providerConfig.env;
+
+    // Publish the GitHub MCP servers to Pi's agent directory. Pi connects every
+    // server listed there at session start; it has no --mcp-config equivalent.
+    await writePiMcpConfig(agentDir, prepareResult.mcpConfig);
 
     // Phase 3: Run Claude (import base-action directly)
     // Set env vars needed by the base-action code
