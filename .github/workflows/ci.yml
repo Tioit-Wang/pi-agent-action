@@ -26,5 +26,9 @@ jobs:
       - name: Typecheck
         run: bunx tsc --noEmit
 
+      # A blocked synchronous call cannot be preempted by bun's per-test
+      # timeout, so bound the step and let the job fail fast instead of
+      # burning the 25 minute job budget.
       - name: Test
+        timeout-minutes: 6
         run: bun test
