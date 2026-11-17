@@ -162,3 +162,49 @@ describe("setupGitHubToken", () => {
     expect(warningSpy).not.toHaveBeenCalled();
   });
 });
+
+// This fork has no GitHub App to exchange an OIDC token for, so a repository
+// without one must still be able to run: the workflow token is the fallback.
+describe("setupGitHubToken without a GitHub App", () => {
+  const originals = {
+    override: process.env.OVERRIDE_GITHUB_TOKEN,
+    workflow: process.env.DEFAULT_WORKFLOW_TOKEN,
+  };
+
+  const withoutApp = (workflowToken?: string) => {
+    delete process.env.OVERRIDE_GITHUB_TOKEN;
+    if (workflowToken === undefined) delete process.env.DEFAULT_WORKFLOW_TOKEN;
+    else process.env.DEFAULT_WORKFLOW_TOKEN = workflowToken;
+    spyOn(core, "getIDToken").mockRejectedValue(
+      new Error("Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable"),
+    );
+    spyOn(core, "warning").mockImplementation(() => {});
+    spyOn(console, "log").mockImplementation(() => {});
+    spyOn(global, "setTimeout").mockImplementation(((handler: any) => {
+      handler();
+      return 0 as any;
+    }) as any);
+  };
+
+  afterEach(() => {
+    if (originals.override === undefined)
+      delete process.env.OVERRIDE_GITHUB_TOKEN;
+    else process.env.OVERRIDE_GITHUB_TOKEN = originals.override;
+    if (originals.workflow === undefined)
+      delete process.env.DEFAULT_WORKFLOW_TOKEN;
+    else process.env.DEFAULT_WORKFLOW_TOKEN = originals.workflow;
+  });
+
+  test("falls back to the workflow token when OIDC is unavailable", async () => {
+    withoutApp("workflow-token");
+
+    await expect(setupGitHubToken()).resolves.toBe("workflow-token");
+    expect(core.warning).toHaveBeenCalled();
+  });
+
+  test("still fails when there is no workflow token either", async () => {
+    withoutApp(undefined);
+
+    await expect(setupGitHubToken()).rejects.toThrow(/OIDC|ID_TOKEN/);
+  });
+});

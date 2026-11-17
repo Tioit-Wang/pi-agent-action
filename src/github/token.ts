@@ -164,9 +164,28 @@ export async function setupGitHubToken(): Promise<string> {
     return providedToken;
   }
 
+  // The upstream action exchanges a GitHub OIDC token for a GitHub App
+  // installation token. That App belongs to Anthropic's product; this fork has
+  // none, so a repository that has not configured one cannot run the action at
+  // all. Fall back to the workflow token, whose scope the job already declared
+  // through `permissions:`.
   console.log("Requesting OIDC token...");
-  const oidcToken = await retryWithBackoff(() => getOidcToken());
-  console.log("OIDC token successfully obtained");
+  let oidcToken: string;
+  try {
+    oidcToken = await retryWithBackoff(() => getOidcToken());
+    console.log("OIDC token successfully obtained");
+  } catch (error) {
+    const workflowToken = process.env.DEFAULT_WORKFLOW_TOKEN;
+    if (!workflowToken) {
+      throw error;
+    }
+    core.warning(
+      `No OIDC/GitHub App token available (${
+        error instanceof Error ? error.message : String(error)
+      }). Continuing with the workflow token; its permissions are the ones the job declares.`,
+    );
+    return workflowToken;
+  }
 
   const permissions = parseAdditionalPermissions();
 

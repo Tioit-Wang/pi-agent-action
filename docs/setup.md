@@ -77,7 +77,9 @@ Grant the narrowest set that still does the job:
 | Review a pull request | `contents: read`, `pull-requests: write` | `track_progress: "true"` |
 | Implement a change and open a pull request | `contents: write`, `pull-requests: write`, `issues: write` | – |
 
-`id-token: write` is not needed: there is no Anthropic OIDC path in this fork.
+`id-token: write` is only needed when you wire a GitHub App of your own. Without
+one, the action logs a warning and uses the workflow token, so the job's
+`permissions:` block is what the agent can actually do.
 
 ## 4. Verify it works
 
