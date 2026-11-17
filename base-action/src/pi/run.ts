@@ -64,7 +64,76 @@ export type PiRunInput = {
 
 const DEFAULT_PI_EXECUTABLE = "pi";
 
-function sanitizeEventLine(event: PiEvent): string | null {
+/** Keys that carry the arguments of a tool call, whichever name Pi uses. */
+const TOOL_ARG_KEYS = ["args", "input", "arguments", "parameters"];
+
+/** Longest string kept verbatim inside a logged argument. */
+const MAX_ARG_STRING = 240;
+
+const SECRET_PATTERNS: Array<[RegExp, string]> = [
+  [/\b(gh[pousr]_[A-Za-z0-9]{16,})/g, "***"],
+  [/\b(github_pat_[A-Za-z0-9_]{20,})/g, "***"],
+  [/\b(sk-[A-Za-z0-9]{16,})/g, "***"],
+  [
+    /((?:"?(?:api[_-]?key|token|password|secret|authorization)"?\s*[:=]\s*"?))[^\s"',}]{8,}/gi,
+    "$1***",
+  ],
+];
+
+/** Mask credentials before a tool argument reaches a public job log. */
+export function redactForLog(text: string): string {
+  return SECRET_PATTERNS.reduce(
+    (acc, [pattern, replacement]) => acc.replace(pattern, replacement),
+    text,
+  );
+}
+
+/**
+ * Shrink a tool argument into something safe and useful to log: paths, patterns
+ * and commands survive, file bodies and other large blobs become `<N chars>`.
+ */
+export function summarizeArgs(value: unknown, depth = 0): unknown {
+  if (typeof value === "string") {
+    return value.length > MAX_ARG_STRING
+      ? `<${value.length} chars>`
+      : redactForLog(value);
+  }
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null
+  ) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.slice(0, 5).map((item) => summarizeArgs(item, depth + 1));
+  }
+  if (value && typeof value === "object" && depth < 2) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .slice(0, 12)
+        .map(([key, item]) => [key, summarizeArgs(item, depth + 1)]),
+    );
+  }
+  return "…";
+}
+
+function toolArgs(event: PiEvent): unknown {
+  for (const key of TOOL_ARG_KEYS) {
+    const value = event[key];
+    if (value === undefined || value === null) continue;
+    return summarizeArgs(value);
+  }
+  return undefined;
+}
+
+/**
+ * The trimmed event stream written to the job log. `show_full_output` prints the
+ * raw records instead; this is the always-on view, so it keeps the tool name and
+ * its arguments — a log of tool names alone cannot tell a reader what a twenty
+ * minute run was doing.
+ */
+export function summarizeEventForLog(event: PiEvent): string | null {
   switch (event.type) {
     case "session": {
       return JSON.stringify(
@@ -76,17 +145,44 @@ function sanitizeEventLine(event: PiEvent): string | null {
     case "turn_end": {
       return JSON.stringify({ type: "turn_end" }, null, 2);
     }
+    case "tool_execution_start":
     case "tool_execution_end": {
+      const args = toolArgs(event);
       return JSON.stringify(
         {
-          type: "tool_execution_end",
+          type: event.type,
           toolName: event.toolName,
+          ...(args === undefined ? {} : { args }),
           isError: event.isError === true,
           durationMs: event.durationMs,
         },
         null,
         2,
       );
+    }
+    case "message_end": {
+      // Some builds report tool calls only inside the assistant message, so log
+      // those too and the parameters are visible whichever way Pi emits them.
+      const message = event.message as
+        | { role?: string; content?: unknown }
+        | undefined;
+      if (message?.role !== "assistant" || !Array.isArray(message.content)) {
+        return null;
+      }
+      const calls = (message.content as Array<Record<string, unknown>>)
+        .filter(
+          (block) =>
+            block &&
+            typeof block.type === "string" &&
+            /tool_(use|call)/i.test(block.type),
+        )
+        .map((block) => ({
+          toolName: block.name ?? block.toolName,
+          args: summarizeArgs(block.input ?? block.args ?? block.arguments),
+        }));
+      return calls.length > 0
+        ? JSON.stringify({ type: "assistant_tool_calls", calls }, null, 2)
+        : null;
     }
     case "error":
     case "auto_retry_end": {
@@ -165,7 +261,7 @@ export async function runPi(input: PiRunInput): Promise<PiRunResult> {
     if (input.parsed.showFullOutput) {
       console.log(JSON.stringify(event, null, 2));
     } else {
-      const sanitized = sanitizeEventLine(event);
+      const sanitized = summarizeEventForLog(event);
       if (sanitized) console.log(sanitized);
     }
     // Tell the caller which tool is running and how far along the run is, so a

@@ -307,8 +307,10 @@ tracking comment instead:
   with the turn count, the elapsed time and the last tool it ran.
 - A cancelled job or a fired `timeout-minutes` still ends in a comment: the spinner
   is replaced with what happened, how many turns it managed, and the reason.
-- `show_full_output: true` adds the raw event stream to the job log for after-the-fact
-  audits; `display_report` writes the report to the step summary.
+- The job log records every tool call with its arguments (path, pattern, command),
+  with file bodies collapsed to `<N chars>` and credentials masked. `show_full_output`
+  gives the untrimmed records instead.
+- `display_report` (default `true`) writes the run report to the step summary.
 ### MCP servers
 
 `github_comment`, `github_inline_comment`, `github_ci` and `github_file_ops` are
