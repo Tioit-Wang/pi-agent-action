@@ -17,6 +17,9 @@ inputs:
   pi_args:
     description: "Additional arguments passed to the Pi CLI (e.g., '--thinking high')"
     required: false
+  json_schema:
+    description: "JSON Schema the final answer must conform to. Appended to the prompt because Pi has no schema flag."
+    required: false
   provider:
     description: "Pi provider id, e.g. deepseek"
     required: false
@@ -157,6 +160,7 @@ runs:
         INPUT_PROMPT_FILE: ${{ inputs.prompt_file }}
         INPUT_SETTINGS: ${{ inputs.settings }}
         INPUT_PI_ARGS: ${{ inputs.pi_args }}
+        INPUT_JSON_SCHEMA: ${{ inputs.json_schema }}
         INPUT_ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
         INPUT_DISALLOWED_TOOLS: ${{ inputs.disallowed_tools }}
         INPUT_NO_TOOLS: ${{ inputs.no_tools }}

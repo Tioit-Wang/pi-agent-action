@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+﻿import { readFileSync } from "node:fs";
 import { describe, expect, test } from "bun:test";
 
 const actionMetadata = readFileSync(
@@ -30,17 +30,23 @@ describe("base action README", () => {
   });
 
   test("should not use removed legacy inputs in workflow examples", () => {
+    // Pi restores model, max_turns and the tool lists as first-class inputs; what
+    // this fork removed are the Anthropic-only provider and plugin inputs.
     const removedInputs = [
-      "allowed_tools",
-      "disallowed_tools",
-      "max_turns",
-      "mcp_config",
-      "system_prompt",
-      "append_system_prompt",
-      "claude_env",
-      "model",
-      "anthropic_model",
-      "fallback_model",
+      "anthropic_api_key",
+      "claude_code_oauth_token",
+      "anthropic_federation_rule_id",
+      "anthropic_organization_id",
+      "anthropic_service_account_id",
+      "anthropic_workspace_id",
+      "anthropic_oidc_audience",
+      "use_bedrock",
+      "use_vertex",
+      "use_foundry",
+      "claude_args",
+      "plugins",
+      "plugin_marketplaces",
+      "path_to_claude_code_executable",
     ];
 
     for (const input of removedInputs) {

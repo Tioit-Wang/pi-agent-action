@@ -70,7 +70,7 @@ async function run() {
       parsed,
       env: provider.env,
       piExecutable: process.env.INPUT_PATH_TO_PI_EXECUTABLE,
-      hasJsonSchema: Boolean(process.env.INPUT_HAS_JSON_SCHEMA === "true"),
+      jsonSchema: process.env.INPUT_JSON_SCHEMA,
     });
 
     // Set outputs for the standalone base-action

@@ -57,6 +57,10 @@ inputs:
     description: "Pi settings as a JSON string or the path to a settings JSON file"
     required: false
     default: ""
+  json_schema:
+    description: "JSON Schema the final answer must conform to. Pi has no schema flag, so the action appends it to the prompt and extracts the object from the final message."
+    required: false
+    default: ""
 
   # Auth and provider
   provider:
@@ -263,6 +267,7 @@ runs:
 
         # Prompt and settings
         INPUT_PROMPT_FILE: ${{ runner.temp }}/pi-prompts/pi-prompt.txt
+        INPUT_JSON_SCHEMA: ${{ inputs.json_schema }}
         INPUT_SETTINGS: ${{ inputs.settings }}
         INPUT_SHOW_FULL_OUTPUT: ${{ inputs.show_full_output }}
         DISPLAY_REPORT: ${{ inputs.display_report }}

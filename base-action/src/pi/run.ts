@@ -37,8 +37,8 @@ export type PiRunInput = {
   env?: Record<string, string>;
   /** Executable or absolute path for the `pi` binary. */
   piExecutable?: string;
-  /** When set, the run must return a JSON object; Pi has no --json-schema. */
-  hasJsonSchema?: boolean;
+  /** When set, the final message must contain a JSON object matching this schema. Pi has no --json-schema flag. */
+  jsonSchema?: string;
   /** Test seam: replaces child_process.spawn. */
   spawnImpl?: typeof spawn;
 };
@@ -80,9 +80,15 @@ function sanitizeEventLine(event: PiEvent): string | null {
 
 export async function runPi(input: PiRunInput): Promise<PiRunResult> {
   const spawnProcess = input.spawnImpl ?? spawn;
-  const promptText =
-    input.promptText ??
-    (await readFile(input.promptPath, "utf-8").catch(() => ""));
+  const jsonSchema = input.jsonSchema?.trim();
+  const basePrompt =
+    input.promptText ?? (await readFile(input.promptPath, "utf-8").catch(() => ""));
+  // Pi has no schema flag, so the requirement travels in the prompt and the
+  // object is extracted from the final assistant message.
+  const promptText = jsonSchema
+    ? `${basePrompt}\n\n## Required output\n\nReply with a single JSON object that conforms to this JSON Schema, and nothing else:\n\n\`\`\`json\n${jsonSchema}\n\`\`\``
+    : basePrompt;
+  const hasJsonSchema = Boolean(jsonSchema);
   const argv = [...input.parsed.argv, ...buildPromptArgs(promptText, input.promptPath)];
   const executable = input.piExecutable?.trim() || DEFAULT_PI_EXECUTABLE;
 
@@ -210,7 +216,7 @@ export async function runPi(input: PiRunInput): Promise<PiRunResult> {
     );
   }
 
-  if (input.hasJsonSchema) {
+  if (hasJsonSchema) {
     const structured = summary.finalText
       ? extractJsonObject(summary.finalText)
       : undefined;

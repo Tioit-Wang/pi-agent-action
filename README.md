@@ -102,6 +102,7 @@ empty and export the provider's own environment variable or pass `api_key`.
 | `no_tools` | `false` | Read-only analysis |
 | `max_turns` | – | Enforced by the action; Pi has no CLI equivalent |
 | `system_prompt` / `append_system_prompt` | – | System prompt overrides |
+| `json_schema` | – | JSON Schema appended to the prompt; result exposed as `structured_output` |
 | `trust_project_files` | `false` | Allow project `.pi/` configuration |
 | `branch_prefix` | `pi/` | Branch namespace for agent mode |
 | `allowed_bots`, `allowed_non_write_users`, `restrict_untrusted_prs` | – / – / `true` | Access control |
@@ -135,7 +136,7 @@ empty and export the provider's own environment variable or pass `api_key`.
 ## Differences from claude-code-action
 
 Ported: trigger detection, tag and agent modes, branch creation, PR creation,
-permission checks, GitHub MCP servers, comment updates and step reports.
+permission checks, comment updates and step reports.
 
 Not ported:
 
@@ -143,10 +144,17 @@ Not ported:
 - Claude Code plugins and plugin marketplaces.
 - Inline-review-comment classification (`classify_inline_comments` defaults to
   `false`; the buffered post-step is gone).
-- `--json-schema`: Pi has no equivalent flag. When the prompt asks for a JSON
-  object, the action extracts and validates the object from the final message.
-- Per-command deny rules (`Bash(npm:*)`). Replaced by removing tools on
-  untrusted checkouts.
+- GitHub MCP servers. `prepareMcpConfig` still builds Claude's `.mcp.json`
+  shape, which Pi does not read from the same place, so the agent currently uses
+  Pi's own tools (`bash`, `read`, `grep`, ...) instead. `gh` on the runner is the
+  reliable GitHub path today.
+- `--json-schema`: Pi has no equivalent flag. The new `json_schema` input appends
+  the schema to the prompt and the object is extracted from the final message,
+  then surfaced as `structured_output`.
+- Per-command deny rules (`Bash(npm:*)`). Replaced by removing `bash`, `edit` and
+  `write` on untrusted checkouts.
+- Mode-generated Claude CLI flags: `pi_args` from the workflow is what reaches
+  Pi; the modes' `--allowedTools` / `--mcp-config` strings are not forwarded.
 
 Internal identifiers that still say `claude*` (comments, some option names in
 `src/`) are leftovers of the fork; they are not user-visible.

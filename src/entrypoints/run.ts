@@ -350,7 +350,9 @@ async function run() {
 
     let piResult: PiRunResult;
     const parsedPiOptions = parsePiOptions({
-      piArgs: prepareResult.claudeArgs,
+      // Mode-generated Claude flags (--allowedTools, --mcp-config, ...) are not
+      // valid Pi arguments, so only the workflow's own pi_args reach the CLI.
+      piArgs: process.env.INPUT_PI_ARGS,
       provider: process.env.PI_PROVIDER,
       model: process.env.PI_MODEL,
       allowedTools: process.env.INPUT_ALLOWED_TOOLS,
@@ -369,7 +371,7 @@ async function run() {
         parsed: parsedPiOptions,
         env: providerEnv,
         piExecutable,
-        hasJsonSchema: Boolean(process.env.INPUT_HAS_JSON_SCHEMA === "true"),
+        jsonSchema: process.env.INPUT_JSON_SCHEMA,
       });
     } finally {
       restoreSessionFiles();
