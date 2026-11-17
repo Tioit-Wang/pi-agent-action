@@ -99,6 +99,8 @@ type BaseContext = {
     allowedBots: string;
     allowedNonWriteUsers: string;
     trackProgress: boolean;
+    /** Rewrite the tracking comment with live progress while Pi runs. */
+    progressUpdates?: boolean;
     includeFixLinks: boolean;
     includeCommentsByActor: string;
     excludeCommentsByActor: string;
@@ -161,6 +163,7 @@ export function parseGitHubContext(): GitHubContext {
       allowedBots: process.env.ALLOWED_BOTS ?? "",
       allowedNonWriteUsers: process.env.ALLOWED_NON_WRITE_USERS ?? "",
       trackProgress: process.env.TRACK_PROGRESS === "true",
+      progressUpdates: process.env.PROGRESS_UPDATES !== "false",
       includeFixLinks: process.env.INCLUDE_FIX_LINKS === "true",
       includeCommentsByActor: process.env.INCLUDE_COMMENTS_BY_ACTOR ?? "",
       excludeCommentsByActor: process.env.EXCLUDE_COMMENTS_BY_ACTOR ?? "",

@@ -268,6 +268,7 @@ extracts the object from the final message.
 | `use_sticky_comment` | `false` | Deliver replies in one reusable comment |
 | `use_commit_signing` / `ssh_signing_key` | `false` / – | Signed commits |
 | `display_report` | `true` | Write the run report to the step summary |
+| `progress_updates` | `true` | Rewrite the tracking comment with live progress while Pi runs |
 | `show_full_output` | `false` | Log every event — may leak repository content |
 | `path_to_pi_executable` / `path_to_bun_executable` | – | Skip the automatic installs |
 | `additional_permissions` | – | Request extra permissions, e.g. `actions: read` for the CI server |
@@ -297,6 +298,17 @@ from that event stream:
 | `base-action/src/pi/run.ts` | Process lifecycle and enforcement |
 | `base-action/src/pi/report.ts` | Step-summary report |
 
+### Watching a run
+
+GitHub uploads job logs only after the job ends, so the run reports itself into the
+tracking comment instead:
+
+- `progress_updates` (default `true`) rewrites the comment every ~30s or 10 turns
+  with the turn count, the elapsed time and the last tool it ran.
+- A cancelled job or a fired `timeout-minutes` still ends in a comment: the spinner
+  is replaced with what happened, how many turns it managed, and the reason.
+- `show_full_output: true` adds the raw event stream to the job log for after-the-fact
+  audits; `display_report` writes the report to the step summary.
 ### MCP servers
 
 `github_comment`, `github_inline_comment`, `github_ci` and `github_file_ops` are

@@ -11,6 +11,8 @@ export type ExecutionDetails = {
 export type CommentUpdateInput = {
   currentBody: string;
   actionFailed: boolean;
+  /** True when the run was cancelled or timed out instead of failing. */
+  actionCancelled?: boolean;
   executionDetails: ExecutionDetails | null;
   jobUrl: string;
   branchLink?: string;
@@ -117,7 +119,9 @@ const workingPattern = /(?:Pi|Claude Code) is working[…\.]{1,3}(?:\s*<img[^>]*
   let header = "";
 
   if (actionFailed) {
-    header = "**Pi encountered an error";
+    header = input.actionCancelled
+      ? "**Pi was cancelled"
+      : "**Pi encountered an error";
     if (durationStr) {
       header += ` after ${durationStr}`;
     }

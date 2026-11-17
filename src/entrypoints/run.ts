@@ -46,6 +46,12 @@ import { restoreToolConfigFromBase } from "../github/operations/tool-config";
 import { validateBranchName } from "../github/operations/branch";
 import { collectActionInputsPresence } from "./collect-inputs";
 import { updateCommentLink } from "./update-comment-link";
+import { buildOutcomeNotice } from "../github/operations/comments/agent-answer";
+import { createJobRunLink } from "../github/operations/comments/common";
+import {
+  buildProgressBody,
+  createProgressPublisher,
+} from "../github/operations/comments/progress";
 import { formatPiReport } from "../../base-action/src/pi/report";
 import type { PiEvent } from "../../base-action/src/pi/events";
 import { redactSecrets } from "../github/utils/sanitizer";
@@ -162,6 +168,24 @@ async function run() {
   let agentAnswer: string | undefined;
   let prepareSuccess = true;
   let prepareError: string | undefined;
+  // A cancelled job or the job timeout stops Pi early. Remember it so the comment
+  // says so instead of leaving the "Pi is working…" spinner running forever.
+  let runCancelled = false;
+  let runError: string | undefined;
+  let runStartedAt: number | undefined;
+  const abortRun = new AbortController();
+  const signalHandlers: Array<[NodeJS.Signals, () => void]> = [];
+  for (const signal of ["SIGTERM", "SIGINT"] as const) {
+    const handler = () => {
+      if (abortRun.signal.aborted) return;
+      core.warning(
+        `Received ${signal}; stopping Pi and publishing what it produced.`,
+      );
+      abortRun.abort();
+    };
+    process.on(signal, handler);
+    signalHandlers.push([signal, handler]);
+  }
   let context: GitHubContext | undefined;
   let octokit: Octokits | undefined;
   // Paths reverted to the PR base branch, which cleanup must not commit back
@@ -270,6 +294,35 @@ async function run() {
         : await prepareAgentMode({ context, octokit, githubToken });
 
     commentId = prepareResult.commentId;
+
+    // GitHub uploads job logs only after the job ends, so the tracking comment is
+    // the only channel a reader can watch while Pi works.
+    const progressCommentId = commentId;
+    const progressOctokit = octokit;
+    const repository = context.repository;
+    const reportProgress =
+      context.inputs.progressUpdates !== false && progressOctokit && progressCommentId
+        ? createProgressPublisher({
+            post: async (body) => {
+              await progressOctokit.rest.issues.updateComment({
+                owner: repository.owner,
+                repo: repository.repo,
+                comment_id: progressCommentId,
+                body,
+              });
+            },
+            build: (update) =>
+              buildProgressBody(
+                update,
+                createJobRunLink(
+                  repository.owner,
+                  repository.repo,
+                  process.env.GITHUB_RUN_ID ?? "",
+                ),
+              ),
+            log: (message) => core.info(message),
+          })
+        : undefined;
     claudeBranch = prepareResult.branchInfo.claudeBranch;
     baseBranch = prepareResult.branchInfo.baseBranch;
     prepareCompleted = true;
@@ -367,6 +420,7 @@ async function run() {
     );
 
     let piResult: PiRunResult;
+    runStartedAt = Date.now();
     const parsedPiOptions = parsePiOptions({
       // Mode-generated Claude flags (--allowedTools, --mcp-config, ...) are not
       // valid Pi arguments, so only the workflow's own pi_args reach the CLI.
@@ -390,6 +444,8 @@ async function run() {
         env: providerEnv,
         piExecutable,
         jsonSchema: process.env.INPUT_JSON_SCHEMA,
+        signal: abortRun.signal,
+        onProgress: reportProgress,
       });
     } finally {
       restoreSessionFiles();
@@ -403,6 +459,24 @@ async function run() {
     agentAnswer = piResult.finalText;
     claudeSuccess = piResult.conclusion === "success";
     executionFile = piResult.executionFile;
+    runError = piResult.error;
+    runCancelled = piResult.cancelled === true;
+
+    // A failed run still has to say something: the placeholder reads as "still
+    // working" long after the job is gone, which is the worst possible answer.
+    if (!claudeSuccess && !agentAnswer) {
+      agentAnswer = buildOutcomeNotice({
+        ...(runCancelled ? { cancelled: true } : {}),
+        ...(piResult.numTurns !== undefined ? { turns: piResult.numTurns } : {}),
+        ...(runStartedAt !== undefined
+          ? { durationMs: Date.now() - runStartedAt }
+          : {}),
+        ...(runError ? { reason: runError } : {}),
+      });
+    }
+    if (!claudeSuccess) {
+      core.setFailed(runError ?? "Pi did not finish the run");
+    }
 
     // Set action-level outputs
     if (piResult.executionFile) {
@@ -426,6 +500,7 @@ async function run() {
     core.setFailed(`Action failed with error: ${redactSecrets(errorMessage)}`);
   } finally {
     // Phase 4: Cleanup (always runs)
+    for (const [signal, handler] of signalHandlers) process.off(signal, handler);
     clearSessionState();
 
 
@@ -448,6 +523,7 @@ async function run() {
           octokit,
           claudeSuccess,
           agentAnswer,
+          cancelled: runCancelled,
           outputFile: executionFile,
           prepareSuccess,
           prepareError,

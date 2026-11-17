@@ -171,6 +171,10 @@ inputs:
     description: "Force tag mode with a tracking comment for pull_request and issue events"
     required: false
     default: "false"
+  progress_updates:
+    description: "Rewrite the tracking comment with live progress (turn count, last tool, elapsed) while Pi runs"
+    required: false
+    default: "true"
   include_fix_links:
     description: "Include 'Fix this' links in review feedback"
     required: false
@@ -261,6 +265,7 @@ runs:
         BOT_ID: ${{ inputs.bot_id }}
         BOT_NAME: ${{ inputs.bot_name }}
         TRACK_PROGRESS: ${{ inputs.track_progress }}
+        PROGRESS_UPDATES: ${{ inputs.progress_updates }}
         INCLUDE_FIX_LINKS: ${{ inputs.include_fix_links }}
         ADDITIONAL_PERMISSIONS: ${{ inputs.additional_permissions }}
         ALL_INPUTS: ${{ toJson(inputs) }}

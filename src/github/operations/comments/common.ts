@@ -36,3 +36,11 @@ I'll analyze this and get back to you.
 
 ${jobRunLink}${branchLink}`;
 }
+
+/** Human duration such as `2m 5s`, for comment bodies. */
+export function formatElapsed(ms: number): string {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}

@@ -19,6 +19,15 @@ import {
 } from "./events";
 import { buildPromptArgs, type ParsedPiOptions } from "./options";
 
+export type PiProgress = {
+  /** Completed assistant turns so far. */
+  turns: number;
+  elapsedMs: number;
+  /** Last tool that finished, e.g. `bash`. */
+  lastTool?: string;
+  totalTokens: number;
+};
+
 export type PiRunResult = {
   executionFile?: string;
   sessionId?: string;
@@ -27,6 +36,12 @@ export type PiRunResult = {
   /** Final assistant text, used by the caller for summaries and links. */
   finalText?: string;
   usage?: PiEventSummary["usage"];
+  /** Completed assistant turns, reported even when the run fails. */
+  numTurns?: number;
+  /** Why the run failed, in user-facing words. */
+  error?: string;
+  /** True when the caller aborted the run. */
+  cancelled?: boolean;
 };
 
 export type PiRunInput = {
@@ -41,6 +56,10 @@ export type PiRunInput = {
   jsonSchema?: string;
   /** Test seam: replaces child_process.spawn. */
   spawnImpl?: typeof spawn;
+  /** Called after each completed turn so the caller can publish progress. */
+  onProgress?: (progress: PiProgress) => void;
+  /** Aborting kills the child and turns the run into a cancelled failure. */
+  signal?: AbortSignal;
 };
 
 const DEFAULT_PI_EXECUTABLE = "pi";
@@ -113,6 +132,9 @@ export async function runPi(input: PiRunInput): Promise<PiRunResult> {
   let stderrBuffer = "";
   let maxTurnsExceeded = false;
   let killed = false;
+  let cancelled = false;
+  let lastTool: string | undefined;
+  const startedAt = Date.now();
 
   const child = spawnProcess(executable, argv, {
     env: { ...process.env, ...(input.env ?? {}) },
@@ -121,6 +143,20 @@ export async function runPi(input: PiRunInput): Promise<PiRunResult> {
     // macOS runners, which the action targets, spawn the binary directly.
     shell: process.platform === "win32",
   });
+
+  // Cancellation comes from the runner (SIGTERM on a cancelled job) or from the
+  // job timeout. Killing the child lets the caller publish what it has instead
+  // of leaving the tracking comment stuck on "Pi is working…".
+  const abortRun = (reason: string): void => {
+    if (killed) return;
+    cancelled = true;
+    killed = true;
+    core.warning(`${reason}; stopping Pi and reporting what it produced.`);
+    child.kill("SIGTERM");
+  };
+
+  if (input.signal?.aborted) abortRun("The run was aborted");
+  else input.signal?.addEventListener("abort", () => abortRun("The run was aborted"), { once: true });
 
   function handleLine(line: string): void {
     const event = collector.pushLine(line);
@@ -131,6 +167,20 @@ export async function runPi(input: PiRunInput): Promise<PiRunResult> {
     } else {
       const sanitized = sanitizeEventLine(event);
       if (sanitized) console.log(sanitized);
+    }
+    // Tell the caller which tool is running and how far along the run is, so a
+    // long run is observable instead of a silent 20 minutes in the job log.
+    if (event.type === "tool_execution_end" && typeof event.toolName === "string") {
+      lastTool = event.toolName;
+    }
+    if (event.type === "turn_end") {
+      const snapshot = collector.summary();
+      input.onProgress?.({
+        turns: snapshot.numTurns,
+        elapsedMs: Date.now() - startedAt,
+        ...(lastTool ? { lastTool } : {}),
+        totalTokens: snapshot.usage.totalTokens,
+      });
     }
 
     if (
@@ -185,9 +235,11 @@ export async function runPi(input: PiRunInput): Promise<PiRunResult> {
 
   const result: PiRunResult = {
     conclusion: "failure",
+    numTurns: summary.numTurns,
     ...(executionFile ? { executionFile } : {}),
     ...(summary.sessionId ? { sessionId: summary.sessionId } : {}),
     ...(summary.finalText ? { finalText: summary.finalText } : {}),
+    ...(cancelled ? { cancelled: true } : {}),
     usage: summary.usage,
   };
 
@@ -195,25 +247,30 @@ export async function runPi(input: PiRunInput): Promise<PiRunResult> {
     core.info(`Set session_id: ${summary.sessionId}`);
   }
 
-  if (exitCode !== 0 && !maxTurnsExceeded) {
-    const detail = summary.errors.join(", ") || stderrBuffer.trim().split("\n").pop() || "unknown error";
-    throw new Error(`Pi execution failed (exit ${exitCode}): ${detail}`);
-  }
-  if (maxTurnsExceeded) {
-    throw new Error(
-      `Pi reported ${summary.numTurns} turns, exceeding the configured maximum of ${input.parsed.maxTurns}`,
-    );
-  }
-  if (summary.aborted) {
-    throw new Error("Pi run was aborted before it settled");
-  }
-  if (summary.errors.length > 0) {
-    throw new Error(`Pi execution failed: ${summary.errors.join(", ")}`);
-  }
-  if (!summary.settled) {
-    throw new Error(
-      "Pi exited without an agent_settled event; the run did not complete",
-    );
+  // A failed run still returns its partial text and the reason, so the caller can
+  // post both: the thread must never end on the "I'll analyze this" placeholder.
+  const failure = cancelled
+    ? "Run was cancelled before Pi finished"
+    : maxTurnsExceeded
+      ? `Pi reported ${summary.numTurns} turns, exceeding the configured maximum of ${input.parsed.maxTurns}`
+      : exitCode !== 0
+        ? `Pi execution failed (exit ${exitCode}): ${
+            summary.errors.join(", ") ||
+            stderrBuffer.trim().split("\n").pop() ||
+            "unknown error"
+          }`
+        : summary.aborted
+          ? "Pi run was aborted before it settled"
+          : summary.errors.length > 0
+            ? `Pi execution failed: ${summary.errors.join(", ")}`
+            : !summary.settled
+              ? "Pi exited without an agent_settled event; the run did not complete"
+              : undefined;
+
+  if (failure) {
+    result.error = failure;
+    core.error(failure);
+    return result;
   }
 
   if (hasJsonSchema) {
@@ -221,9 +278,10 @@ export async function runPi(input: PiRunInput): Promise<PiRunResult> {
       ? extractJsonObject(summary.finalText)
       : undefined;
     if (!structured) {
-      throw new Error(
-        "json_schema was provided but Pi did not return a parsable JSON object",
-      );
+      result.error =
+        "json_schema was provided but Pi did not return a parsable JSON object";
+      core.error(result.error);
+      return result;
     }
     result.structuredOutput = JSON.stringify(structured);
     core.info(

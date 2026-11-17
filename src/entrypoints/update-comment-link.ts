@@ -28,6 +28,8 @@ export type UpdateCommentLinkParams = {
   context: ParsedGitHubContext;
   octokit: Octokits;
   claudeSuccess: boolean;
+  /** True when the job was cancelled or timed out rather than failing. */
+  cancelled?: boolean;
   /** Final assistant text, posted in place of the placeholder. */
   agentAnswer?: string;
   outputFile?: string;
@@ -54,6 +56,7 @@ export async function updateCommentLink(
     octokit,
     useCommitSigning,
     restoredConfigPaths = [],
+    cancelled = false,
   } = params;
 
   const { owner, repo } = context.repository;
@@ -222,6 +225,7 @@ export async function updateCommentLink(
   const commentInput: CommentUpdateInput = {
     currentBody,
     actionFailed,
+    actionCancelled: cancelled,
     executionDetails,
     jobUrl,
     branchLink,

@@ -42,6 +42,7 @@ behaviour most:
 | `pi_args` | Extra CLI flags, e.g. `--thinking high`. Plain words only; shell operators are rejected. |
 | `trust_project_files` | Load project `.pi/` configuration. Leave false for untrusted content. |
 | `restrict_untrusted_prs` | Default `true`. Removes `bash`, `edit`, `write` on untrusted PR checkouts. |
+| `progress_updates` | Default `true`. Rewrites the tracking comment with the turn count, elapsed time and last tool while Pi runs. |
 
 ## Outputs
 
