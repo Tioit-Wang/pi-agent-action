@@ -20,9 +20,9 @@ a comment. It never pushes commits.
 | Trigger | Input | Default |
 | --- | --- | --- |
 | Mention | `trigger_phrase` | `@pi` |
-| Assignee | `assignee_trigger` | 鈥?(set `pi` to enable) |
+| Assignee | `assignee_trigger` | – (set `pi` to enable) |
 | Label | `label_trigger` | `pi` |
-| Automation | `prompt` on any event | 鈥?|
+| Automation | `prompt` on any event | – |
 
 Mentions are matched in issue bodies, issue comments and review comments.
 Assignments apply to `issues: [assigned]`; labels to `issues: [labeled]` and
@@ -98,4 +98,4 @@ repository:
       Read .github/prompts/review.md and follow it for PR #${{ github.event.pull_request.number }}.
 ```
 
-The agent has `read`, so it can load the file itself 鈥?no template engine needed.
+The agent has `read`, so it can load the file itself — no template engine needed.

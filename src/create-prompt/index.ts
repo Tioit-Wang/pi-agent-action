@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bun
+#!/usr/bin/env bun
 
 import * as core from "@actions/core";
 import { writeFile, mkdir, rm } from "fs/promises";
@@ -773,7 +773,7 @@ ${eventData.eventName === "issue_comment" || eventData.eventName === "pull_reque
       - Include relevant file paths and line numbers when applicable.${
         eventData.isPR && context.githubContext?.inputs.includeFixLinks
           ? `
-      - When identifying issues that could be fixed, include an inline link: [Fix this 鈫抅(https://claude.ai/code?q=<URI_ENCODED_INSTRUCTIONS>&repo=${context.repository})
+      - When identifying issues that could be fixed, include an inline link: [Fix this →](https://claude.ai/code?q=<URI_ENCODED_INSTRUCTIONS>&repo=${context.repository})
         The query should be URI-encoded and include enough context for Claude Code to understand and fix the issue (file path, line numbers, branch name, what needs to change).`
           : ""
       }
@@ -984,7 +984,7 @@ export async function createPrompt(
 
     // Clear any stale prompt files from a prior invocation. RUNNER_TEMP is documented
     // to be emptied between jobs, but on non-ephemeral self-hosted runners this is
-    // not reliably honored 鈥?a stale claude-user-request.txt left behind by a prior
+    // not reliably honored — a stale claude-user-request.txt left behind by a prior
     // mention-mode invocation would not be overwritten by a subsequent agent-mode
     // invocation, and would leak into the model's context.
     const promptDir = `${process.env.RUNNER_TEMP || "/tmp"}/claude-prompts`;
@@ -1020,7 +1020,7 @@ export async function createPrompt(
       console.log("========================");
     }
 
-    // NOTE: these env var exports are dead 鈥?nothing reads ALLOWED_TOOLS / DISALLOWED_TOOLS.
+    // NOTE: these env var exports are dead — nothing reads ALLOWED_TOOLS / DISALLOWED_TOOLS.
     // The live path is modes/tag/index.ts which builds --allowedTools into claudeArgs directly.
     // Kept only so the H1 report's pointed-to file stays in sync with the live fix.
     const hasActionsReadPermission = false;

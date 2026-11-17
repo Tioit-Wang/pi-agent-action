@@ -1,4 +1,4 @@
-# After a failing workflow, explain the failure on the PR 鈥?or fix it when it is
+# After a failing workflow, explain the failure on the PR — or fix it when it is
 # mechanical.
 #
 # `additional_permissions: actions: read` is what installs the github_ci MCP
