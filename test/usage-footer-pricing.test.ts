@@ -41,7 +41,6 @@ describe("built-in DeepSeek pricing", () => {
   test("bills cached input at the cache-hit rate", () => {
     const footer = buildUsageFooter({
       model: "deepseek-flash",
-      inputTokens: 1_000_000,
       cacheReadTokens: 1_000_000,
       at: PEAK,
     })!;
@@ -49,6 +48,20 @@ describe("built-in DeepSeek pricing", () => {
     // 1M cached × $0.006
     expect(footer).toContain("≈$0.006");
     expect(footer).toContain("$0.006/M cached");
+  });
+
+  test("bills cache misses and cache hits separately", () => {
+    const footer = buildUsageFooter({
+      model: "deepseek-flash",
+      inputTokens: 1_000_000,
+      cacheReadTokens: 2_000_000,
+      outputTokens: 1_000_000,
+      at: PEAK,
+    })!;
+
+    // 2M × $0.006 + 1M × $0.30 + 1M × $1.20
+    expect(footer).toContain("≈$1.51");
+    expect(footer).toContain("(1M input, 2M cached, 1M output)");
   });
 
   test("halves everything outside peak hours", () => {

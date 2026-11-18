@@ -74,6 +74,7 @@ export type UsageFooterInput = {
   model?: string;
   durationMs?: number;
   turns?: number;
+  /** Input tokens that missed the prompt cache. */
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;
@@ -128,9 +129,12 @@ function estimateFromTable(
   const peak = input.at ? isPeakHour(input.at) : true;
   const multiplier = peak ? 1 : pricing.offPeakMultiplier;
 
-  const inputTokens = input.inputTokens ?? 0;
-  const cached = Math.min(input.cacheReadTokens ?? 0, inputTokens);
-  const fresh = Math.max(0, inputTokens - cached);
+  // Cached and uncached prompt tokens are disjoint: `inputTokens` counts the
+  // tokens that missed the prompt cache, `cacheReadTokens` the ones served from
+  // it. Clamping one against the other would bill a long conversation's cache
+  // reads as free and understate the cost by half or more.
+  const fresh = Math.max(0, input.inputTokens ?? 0);
+  const cached = Math.max(0, input.cacheReadTokens ?? 0);
   const outputTokens = input.outputTokens ?? 0;
 
   const total =
@@ -145,7 +149,9 @@ function estimateFromTable(
     `${priceUsd(pricing.outputPerMillion * multiplier)}/M output`,
   ];
   if (cached > 0) {
-    rates.unshift(`${priceUsd(pricing.inputCacheHitPerMillion * multiplier)}/M cached`);
+    rates.unshift(
+      `${priceUsd(pricing.inputCacheHitPerMillion * multiplier)}/M cached`,
+    );
   }
 
   return {
@@ -205,7 +211,10 @@ export function buildUsageFooter(input: UsageFooterInput): string | undefined {
       ? `${input.provider}/${input.model}`
       : input.model || input.provider;
   const totalTokens =
-    input.totalTokens ?? (input.inputTokens ?? 0) + (input.outputTokens ?? 0);
+    input.totalTokens ??
+    (input.inputTokens ?? 0) +
+      (input.cacheReadTokens ?? 0) +
+      (input.outputTokens ?? 0);
 
   if (!model && totalTokens <= 0) return undefined;
 
@@ -234,9 +243,11 @@ export function buildUsageFooter(input: UsageFooterInput): string | undefined {
   }
 
   if (totalTokens > 0) {
+    const cached = input.cacheReadTokens ?? 0;
+    const cachePart = cached > 0 ? `${formatTokenCount(cached)} cached, ` : "";
     const breakdown =
       input.inputTokens !== undefined || input.outputTokens !== undefined
-        ? ` (${formatTokenCount(input.inputTokens ?? 0)} input, ${formatTokenCount(input.outputTokens ?? 0)} output)`
+        ? ` (${formatTokenCount(input.inputTokens ?? 0)} input, ${cachePart}${formatTokenCount(input.outputTokens ?? 0)} output)`
         : "";
     details.push(`- Tokens: ${formatTokenCount(totalTokens)}${breakdown}`);
   }

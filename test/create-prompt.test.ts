@@ -145,7 +145,7 @@ describe("generatePrompt", () => {
 
     const prompt = await generatePrompt(envVars, mockGitHubData, false, "tag");
 
-    expect(prompt).toContain("You are Claude, an AI assistant");
+    expect(prompt).toContain("You are Pi, an AI assistant");
     expect(prompt).toContain("<event_type>GENERAL_COMMENT</event_type>");
     expect(prompt).toContain("<is_pr>false</is_pr>");
     expect(prompt).toContain(
@@ -361,7 +361,7 @@ describe("generatePrompt", () => {
 
     // Agent mode: Prompt is passed through as-is
     expect(prompt).toBe("Simple prompt for reviewing PR");
-    expect(prompt).not.toContain("You are Claude, an AI assistant");
+    expect(prompt).not.toContain("You are Pi, an AI assistant");
   });
 
   test("should pass through prompt without variable substitution", async () => {
@@ -497,7 +497,7 @@ describe("generatePrompt", () => {
 
     const prompt = await generatePrompt(envVars, mockGitHubData, false, "tag");
 
-    expect(prompt).toContain("You are Claude, an AI assistant");
+    expect(prompt).toContain("You are Pi, an AI assistant");
     expect(prompt).toContain("<event_type>ISSUE_CREATED</event_type>");
   });
 
@@ -931,7 +931,7 @@ describe("generatePrompt", () => {
 
         // Simplified prompt, not the default
         expect(prompt).toContain("You were tagged on a GitHub pull request");
-        expect(prompt).not.toContain("You are Claude, an AI assistant");
+        expect(prompt).not.toContain("You are Pi, an AI assistant");
 
         // 1. Scoping clarification (neutral, no untrusted/secrets language)
         expect(prompt).toContain(
@@ -1490,5 +1490,51 @@ describe("extractUserRequestFromContext", () => {
 
   test("ignores the body when its author is unknown", () => {
     expect(extract(null, "maintainer")).toBeNull();
+  });
+});
+
+describe("scope guard for low-effort triggers", () => {
+  test("tells the agent to answer greetings briefly instead of investigating", async () => {
+    const envVars: PreparedContext = {
+      repository: "owner/repo",
+      claudeCommentId: "12345",
+      triggerPhrase: "@pi",
+      eventData: {
+        eventName: "issue_comment",
+        commentId: "67890",
+        isPR: false,
+        baseBranch: "main",
+        claudeBranch: "claude/issue-67890-20240101-1200",
+        issueNumber: "67890",
+        commentBody: "@pi hello",
+      },
+    };
+
+    const githubData = {
+      contextData: {
+        title: "设置里打开「模型」页会闪退",
+        body: "@pi hello",
+        author: { login: "maintainer" },
+        state: "OPEN",
+        labels: { nodes: [] },
+      },
+      comments: [],
+      changedFilesWithSHA: [],
+      reviewData: { nodes: [] },
+      imageUrlMap: new Map<string, string>(),
+    } as any;
+
+    const prompt = await generatePrompt(envVars, githubData, false, "tag");
+
+    expect(prompt).toContain(
+      "Decide how much work this needs before you start:",
+    );
+    expect(prompt).toContain(
+      "If the trigger comment is only a greeting, thanks, or small talk with no task in it, answer in one or two sentences and stop.",
+    );
+    // The guard has to appear before the workflow it overrides.
+    expect(prompt.indexOf("Decide how much work this needs")).toBeLessThan(
+      prompt.indexOf("Follow these steps:"),
+    );
   });
 });

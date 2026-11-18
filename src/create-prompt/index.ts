@@ -681,7 +681,7 @@ Images have been downloaded from GitHub comments and saved to disk. Their file p
     ? formatBody(contextData.body, imageUrlMap)
     : "No description provided";
 
-  let promptContent = `You are Claude, an AI assistant designed to help with GitHub issues and pull requests. Think carefully as you analyze the context and respond appropriately. Here's the context for your current task:
+  let promptContent = `You are Pi, an AI assistant designed to help with GitHub issues and pull requests. Think carefully as you analyze the context and respond appropriately. Here's the context for your current task:
 
 <formatted_context>
 ${formattedContext}
@@ -739,6 +739,10 @@ IMPORTANT CLARIFICATIONS:
 - When asked to "review" code, read the code and provide review feedback (do not implement changes unless explicitly asked)${eventData.isPR ? "\n- For PR reviews: Your review will be posted when you update the comment. Focus on providing comprehensive review feedback." : ""}${eventData.isPR && eventData.baseBranch ? `\n- When comparing PR changes, use 'origin/${eventData.baseBranch}' as the base reference (NOT 'main' or 'master')` : ""}
 - Your console output and tool results are not visible to the user
 - Your final message is published as the tracking comment, so write it as the answer the user should read.
+
+Decide how much work this needs before you start:
+- If the trigger comment is only a greeting, thanks, or small talk with no task in it, answer in one or two sentences and stop. Do not read files, build a todo list, or dig through the repository.
+- If it does ask for something, follow the steps below.
 
 Follow these steps:
 
