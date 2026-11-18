@@ -1,0 +1,41 @@
+# Self-test for the triage pipeline.
+#
+# Runs the action from this checkout (`uses: ./`), so it exercises the working
+# tree rather than a published tag. Kept separate from `pi.yml` because triage is
+# silent: it must never post a reply, and mixing it with the mention bot would
+# make that hard to see.
+name: Triage self-test
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to triage
+        required: true
+        type: string
+
+concurrency:
+  group: triage-${{ inputs.issue_number || github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./
+        with:
+          triage: "true"
+          issue_number: ${{ inputs.issue_number }}
+          provider: deepseek
+          model: deepseek-v4.1-flash
+          base_url: https://platform.aimom.net/v1
+          api_style: openai-completions
+          api_key: ${{ secrets.AIMOM_API_KEY }}

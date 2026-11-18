@@ -1,0 +1,34 @@
+# Triage configuration for this repository (dogfooding the action).
+labels:
+  type:
+    required: true
+    options:
+      - { name: bug, description: Something is broken, failing or crashing }
+      - { name: enhancement, description: A new feature or an improvement }
+      - { name: documentation, description: Documentation is missing or wrong }
+      - { name: question, description: A usage question }
+      - { name: performance, description: Slow, heavy, or leaking resources }
+      - { name: security, description: A vulnerability or a secret exposure }
+  priority:
+    required: true
+    options:
+      - { name: P0, description: Data loss, crash, security, or unusable }
+      - { name: P1, description: Core feature broken, workaround exists }
+      - { name: P2, description: A defect or rough edge off the main path }
+      - { name: P3, description: Suggestion, polish, or edge case }
+  state:
+    required: false
+    options:
+      - { name: needs-info, description: Missing steps, environment or version }
+duplicate:
+  label: duplicate
+  confidence: 0.8
+  candidates: 8
+  include_comments: true
+  comment:
+    on_new_issue: |
+      Possibly a duplicate of #{{number}} ({{state}}): {{reason}}
+
+      If this is the same problem, please continue in #{{number}} and close this one.
+    on_original: |
+      Raised again in #{{new_number}} ({{date}}).
