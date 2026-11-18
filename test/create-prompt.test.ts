@@ -846,15 +846,9 @@ describe("generatePrompt", () => {
 
     const prompt = await generatePrompt(envVars, mockGitHubData, true, "tag");
 
-    // Should have commit signing tool instructions
+    // Should have commit signing tool instructions, and never fall back to git
     expect(prompt).toContain("mcp__github_file_ops__commit_files");
-    expect(prompt).toContain("mcp__github_file_ops__delete_files");
-    expect(prompt).toContain(
-      'mcp__github_file_ops__delete_files: {"paths": ["path/to/old.js"]',
-    );
-    expect(prompt).not.toContain(
-      'mcp__github_file_ops__delete_files: {"files":',
-    );
+    expect(prompt).not.toContain("git-push.sh");
     // Comment tool should always be from comment server, not file ops
     expect(prompt).toContain("mcp__github_comment__update_claude_comment");
 
@@ -1530,11 +1524,11 @@ describe("scope guard for low-effort triggers", () => {
       "Decide how much work this needs before you start:",
     );
     expect(prompt).toContain(
-      "If the trigger comment is only a greeting, thanks, or small talk with no task in it, answer in one or two sentences and stop.",
+      "If the trigger is only a greeting, thanks, or small talk with no task in it, answer in one or two sentences and stop.",
     );
     // The guard has to appear before the workflow it overrides.
     expect(prompt.indexOf("Decide how much work this needs")).toBeLessThan(
-      prompt.indexOf("Follow these steps:"),
+      prompt.indexOf("How to work:"),
     );
   });
 });
