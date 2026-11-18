@@ -228,12 +228,18 @@ async function run() {
     // including the ones opened by people without write access. It never creates
     // a tracking comment, so it cannot leak a reply.
     if (context.inputs.triage === true) {
+      // A manual dispatch has no entity context, so it passes the number in.
+      const manualIssueNumber = Number(
+        context.inputs.triageIssueNumber?.trim() || NaN,
+      );
       const issueNumber =
-        isEntityContext(context) && context.entityNumber
-          ? Number(context.entityNumber)
-          : NaN;
+        Number.isInteger(manualIssueNumber) && manualIssueNumber > 0
+          ? manualIssueNumber
+          : isEntityContext(context) && context.entityNumber
+            ? Number(context.entityNumber)
+            : NaN;
       if (!Number.isInteger(issueNumber) || issueNumber <= 0) {
-        throw new Error("Triage requires an issue event with an issue number");
+        throw new Error("Triage requires an issue number");
       }
 
       const piExecutable = await installPi();

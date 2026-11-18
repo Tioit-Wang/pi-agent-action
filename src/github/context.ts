@@ -110,6 +110,8 @@ type BaseContext = {
     /** Path to the repository's triage configuration. */
     triageConfig?: string;
     excludeCommentsByActor: string;
+    /** Issue number supplied by a manual triage dispatch. */
+    triageIssueNumber?: string;
   };
 };
 
@@ -172,6 +174,7 @@ export function parseGitHubContext(): GitHubContext {
       progressUpdates: process.env.PROGRESS_UPDATES !== "false",
       usageFooter: process.env.USAGE_FOOTER !== "false",
       triage: process.env.TRIAGE === "true",
+      triageIssueNumber: process.env.TRIAGE_ISSUE_NUMBER ?? "",
       triageConfig: process.env.TRIAGE_CONFIG || ".github/pi-triage.yml",
       includeFixLinks: process.env.INCLUDE_FIX_LINKS === "true",
       includeCommentsByActor: process.env.INCLUDE_COMMENTS_BY_ACTOR ?? "",

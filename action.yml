@@ -195,6 +195,10 @@ inputs:
     description: "Path to the triage configuration in the checked out repository"
     required: false
     default: ".github/pi-triage.yml"
+  issue_number:
+    description: "Issue number to triage. Only read when triage runs from workflow_dispatch."
+    required: false
+    default: ""
   include_fix_links:
     description: "Include 'Fix this' links in review feedback"
     required: false
@@ -291,6 +295,7 @@ runs:
         INPUT_PRICE_OUTPUT_PER_MILLION: ${{ inputs.price_output_per_million }}
         TRIAGE: ${{ inputs.triage }}
         TRIAGE_CONFIG: ${{ inputs.triage_config }}
+        TRIAGE_ISSUE_NUMBER: ${{ inputs.issue_number }}
         INCLUDE_FIX_LINKS: ${{ inputs.include_fix_links }}
         ADDITIONAL_PERMISSIONS: ${{ inputs.additional_permissions }}
         ALL_INPUTS: ${{ toJson(inputs) }}
