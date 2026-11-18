@@ -110,11 +110,9 @@ async function installPi(): Promise<string> {
     console.log(`Installation attempt ${attempt}...`);
     try {
       await new Promise<void>((resolve, reject) => {
-        const child = spawn(
-          "bash",
-          ["-c", buildInstallCommand(piVersion)],
-          { stdio: "inherit" },
-        );
+        const child = spawn("bash", ["-c", buildInstallCommand(piVersion)], {
+          stdio: "inherit",
+        });
         child.on("close", (code) => {
           if (code === 0) resolve();
           else reject(new Error(`Install failed with exit code ${code}`));
@@ -142,7 +140,9 @@ async function writeStepSummary(executionFile: string): Promise<void> {
   if (!summaryFile) return;
 
   try {
-    const events = JSON.parse(readFileSync(executionFile, "utf-8")) as PiEvent[];
+    const events = JSON.parse(
+      readFileSync(executionFile, "utf-8"),
+    ) as PiEvent[];
     await appendFile(summaryFile, formatPiReport(events));
     console.log("Successfully formatted Pi agent report");
   } catch (error) {
@@ -250,6 +250,7 @@ async function run() {
         apiKey: process.env.PI_API_KEY,
         api: process.env.PI_API_STYLE,
         agentDir: process.env.PI_CODING_AGENT_DIR,
+        thinking: process.env.INPUT_THINKING,
       });
 
       const triageResult = await runTriageFromRepo({
@@ -265,6 +266,7 @@ async function run() {
             parsed: parsePiOptions({
               provider: process.env.PI_PROVIDER,
               model: process.env.PI_MODEL,
+              thinking: process.env.INPUT_THINKING,
               noTools: true,
               approveProject: false,
               showFullOutput: process.env.INPUT_SHOW_FULL_OUTPUT,
@@ -378,7 +380,9 @@ async function run() {
     const progressOctokit = octokit;
     const repository = context.repository;
     const reportProgress =
-      context.inputs.progressUpdates !== false && progressOctokit && progressCommentId
+      context.inputs.progressUpdates !== false &&
+      progressOctokit &&
+      progressCommentId
         ? createProgressPublisher({
             post: async (body) => {
               await progressOctokit.rest.issues.updateComment({
@@ -414,6 +418,7 @@ async function run() {
       apiKey: process.env.PI_API_KEY,
       api: process.env.PI_API_STYLE,
       agentDir: process.env.PI_CODING_AGENT_DIR,
+      thinking: process.env.INPUT_THINKING,
     });
     const agentDir = providerConfig.agentDir;
     const providerEnv = providerConfig.env;
@@ -473,7 +478,6 @@ async function run() {
 
     await setupPiSettings(process.env.INPUT_SETTINGS, agentDir);
 
-
     const promptFile =
       process.env.INPUT_PROMPT_FILE ||
       `${process.env.RUNNER_TEMP}/pi-prompts/pi-prompt.txt`;
@@ -491,7 +495,6 @@ async function run() {
       ? [...UNTRUSTED_PR_EXCLUDED_PI_TOOLS]
       : [];
 
-
     const restoreSessionFiles = snapshotSessionFiles(() =>
       prepareGitForSession({ hooks: hooksOff }),
     );
@@ -504,6 +507,7 @@ async function run() {
       piArgs: process.env.INPUT_PI_ARGS,
       provider: process.env.PI_PROVIDER,
       model: process.env.PI_MODEL,
+      thinking: process.env.INPUT_THINKING,
       allowedTools: process.env.INPUT_ALLOWED_TOOLS,
       disallowedTools: disallowedTools.join(","),
       appendSystemPrompt: process.env.APPEND_SYSTEM_PROMPT,
@@ -546,26 +550,33 @@ async function run() {
         : buildUsageFooter({
             provider: process.env.PI_PROVIDER,
             model: process.env.PI_MODEL,
+            thinking: parsedPiOptions.thinking,
             ...(runStartedAt !== undefined
               ? { durationMs: Date.now() - runStartedAt }
               : {}),
-            ...(piResult.numTurns !== undefined ? { turns: piResult.numTurns } : {}),
+            ...(piResult.numTurns !== undefined
+              ? { turns: piResult.numTurns }
+              : {}),
             ...(piResult.usage ? { inputTokens: piResult.usage.input } : {}),
             ...(piResult.usage ? { outputTokens: piResult.usage.output } : {}),
-            ...(piResult.usage ? { totalTokens: piResult.usage.totalTokens } : {}),
+            ...(piResult.usage
+              ? { totalTokens: piResult.usage.totalTokens }
+              : {}),
             ...(piResult.usage ? { costUsd: piResult.usage.cost } : {}),
             ...(piResult.usage
               ? { cacheReadTokens: piResult.usage.cacheRead }
               : {}),
             at: new Date(),
-            ...(parsePrice(process.env.INPUT_PRICE_INPUT_PER_MILLION) !== undefined
+            ...(parsePrice(process.env.INPUT_PRICE_INPUT_PER_MILLION) !==
+            undefined
               ? {
                   priceInputPerMillion: parsePrice(
                     process.env.INPUT_PRICE_INPUT_PER_MILLION,
                   ),
                 }
               : {}),
-            ...(parsePrice(process.env.INPUT_PRICE_OUTPUT_PER_MILLION) !== undefined
+            ...(parsePrice(process.env.INPUT_PRICE_OUTPUT_PER_MILLION) !==
+            undefined
               ? {
                   priceOutputPerMillion: parsePrice(
                     process.env.INPUT_PRICE_OUTPUT_PER_MILLION,
@@ -579,7 +590,9 @@ async function run() {
     if (!claudeSuccess && !agentAnswer) {
       agentAnswer = buildOutcomeNotice({
         ...(runCancelled ? { cancelled: true } : {}),
-        ...(piResult.numTurns !== undefined ? { turns: piResult.numTurns } : {}),
+        ...(piResult.numTurns !== undefined
+          ? { turns: piResult.numTurns }
+          : {}),
         ...(runStartedAt !== undefined
           ? { durationMs: Date.now() - runStartedAt }
           : {}),
@@ -612,9 +625,9 @@ async function run() {
     core.setFailed(`Action failed with error: ${redactSecrets(errorMessage)}`);
   } finally {
     // Phase 4: Cleanup (always runs)
-    for (const [signal, handler] of signalHandlers) process.off(signal, handler);
+    for (const [signal, handler] of signalHandlers)
+      process.off(signal, handler);
     clearSessionState();
-
 
     // Update tracking comment
     if (

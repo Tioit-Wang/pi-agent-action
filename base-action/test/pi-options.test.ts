@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  DEFAULT_THINKING_LEVEL,
   PROMPT_ARGV_LIMIT,
+  THINKING_LEVELS,
   buildPromptArgs,
   parsePiOptions,
+  parseThinkingLevel,
 } from "../src/pi/options";
 
 describe("parsePiOptions", () => {
@@ -74,7 +77,9 @@ describe("parsePiOptions", () => {
   });
 
   test("treats show_full_output literally", () => {
-    expect(parsePiOptions({ showFullOutput: "true" }).showFullOutput).toBe(true);
+    expect(parsePiOptions({ showFullOutput: "true" }).showFullOutput).toBe(
+      true,
+    );
     expect(parsePiOptions({ showFullOutput: "yes" }).showFullOutput).toBe(
       false,
     );
@@ -94,5 +99,32 @@ describe("buildPromptArgs", () => {
     const args = buildPromptArgs(prompt, "/tmp/pi-prompt.txt");
     expect(args[1]).toBe("@/tmp/pi-prompt.txt");
     expect(args.some((arg) => arg === prompt)).toBe(false);
+  });
+});
+
+describe("thinking level", () => {
+  test("defaults to high and reaches the CLI", () => {
+    const { argv, thinking } = parsePiOptions({});
+    expect(thinking).toBe("high");
+    expect(thinking).toBe(DEFAULT_THINKING_LEVEL);
+    expect(argv[argv.indexOf("--thinking") + 1]).toBe("high");
+  });
+
+  test("accepts every level Pi supports, regardless of case and padding", () => {
+    for (const level of THINKING_LEVELS) {
+      expect(parseThinkingLevel(level)).toBe(level);
+      expect(parseThinkingLevel(` ${level.toUpperCase()} `)).toBe(level);
+      const { argv } = parsePiOptions({ thinking: level });
+      expect(argv[argv.indexOf("--thinking") + 1]).toBe(level);
+    }
+  });
+
+  test("rejects a level Pi would silently clamp", () => {
+    expect(() => parseThinkingLevel("turbo")).toThrow(
+      /thinking must be one of/,
+    );
+    expect(() => parsePiOptions({ thinking: "turbo" })).toThrow(
+      /off, minimal, low, medium, high, xhigh, max/,
+    );
   });
 });

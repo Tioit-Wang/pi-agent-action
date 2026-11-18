@@ -37,7 +37,9 @@ describe("buildUsageFooter", () => {
     expect(footer).toContain("- Model: `deepseek/deepseek-v4.1-flash`");
     expect(footer).toContain("- Duration: 19m 23s (51 turns)");
     expect(footer).toContain("- Tokens: 1.29M (1.21M input, 84k output)");
-    expect(footer).toContain("Estimated cost: ≈$0.42 ($0.27/M input, $1.1/M output)");
+    expect(footer).toContain(
+      "Estimated cost: ≈$0.42 ($0.27/M input, $1.1/M output)",
+    );
     expect(footer.endsWith("</details>")).toBe(true);
   });
 
@@ -114,5 +116,24 @@ I'll analyze this and get back to you.
 
     expect(body).toContain("<details><summary>");
     expect(body.trimEnd().endsWith("</details>")).toBe(true);
+  });
+});
+
+describe("thinking level in the footer", () => {
+  test("shows the level in parentheses after the model", () => {
+    const footer = buildUsageFooter({
+      provider: "deepseek",
+      model: "deepseek-v4.1-flash",
+      thinking: "max",
+    })!;
+
+    expect(footer).toContain("- Model: `deepseek/deepseek-v4.1-flash` (max)");
+  });
+
+  test("omits the parentheses when no level is known", () => {
+    const footer = buildUsageFooter({ model: "m" })!;
+
+    expect(footer).toContain("- Model: `m`");
+    expect(footer).not.toContain("()");
   });
 });

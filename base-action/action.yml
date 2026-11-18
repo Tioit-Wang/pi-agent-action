@@ -26,6 +26,10 @@ inputs:
   model:
     description: "Model id or pattern, e.g. deepseek-chat"
     required: false
+  thinking:
+    description: "Thinking level: off, minimal, low, medium, high, xhigh or max"
+    required: false
+    default: "high"
   api_key:
     description: "API key for the provider. Passed through the environment, never written to disk."
     required: false
@@ -165,6 +169,7 @@ runs:
         INPUT_DISALLOWED_TOOLS: ${{ inputs.disallowed_tools }}
         INPUT_NO_TOOLS: ${{ inputs.no_tools }}
         INPUT_MAX_TURNS: ${{ inputs.max_turns }}
+        INPUT_THINKING: ${{ inputs.thinking }}
         INPUT_SYSTEM_PROMPT: ${{ inputs.system_prompt }}
         INPUT_APPEND_SYSTEM_PROMPT: ${{ inputs.append_system_prompt }}
         INPUT_TRUST_PROJECT_FILES: ${{ inputs.trust_project_files }}

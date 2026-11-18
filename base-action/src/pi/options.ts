@@ -17,6 +17,8 @@ export type PiOptions = {
   provider?: string;
   /** Model id or pattern, e.g. `deepseek-chat`. */
   model?: string;
+  /** Thinking level: off|minimal|low|medium|high|xhigh|max. Defaults to `high`. */
+  thinking?: string;
   /** Comma-separated allowlist of tool names. */
   allowedTools?: string;
   /** Comma-separated denylist of tool names. */
@@ -38,6 +40,8 @@ export type PiOptions = {
 export type ParsedPiOptions = {
   /** Arguments for the `pi` process, excluding the prompt. */
   argv: string[];
+  /** Thinking level this run was started with. */
+  thinking: ThinkingLevel;
   maxTurns?: number;
   showFullOutput: boolean;
 };
@@ -87,8 +91,47 @@ export function parseMaxTurns(raw?: string): number | undefined {
   return value;
 }
 
+/** Thinking levels Pi accepts, cheapest first. */
+export const THINKING_LEVELS = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+] as const;
+
+export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
+
+/**
+ * Pi's own default is `medium`. This action asks for `high` unless a workflow
+ * says otherwise: issue triage and code answers gain more from the extra
+ * deliberation than the extra tokens cost.
+ */
+export const DEFAULT_THINKING_LEVEL: ThinkingLevel = "high";
+
+/**
+ * Thinking level for a run. A blank value falls back to the action default. An
+ * unknown level is rejected rather than passed through, because Pi clamps levels
+ * a model does not support -- a typo would otherwise run at a different effort
+ * than the workflow asked for, with nothing in the log to show it.
+ */
+export function parseThinkingLevel(raw?: string): ThinkingLevel {
+  const value = raw?.trim().toLowerCase();
+  if (!value) return DEFAULT_THINKING_LEVEL;
+  const level = THINKING_LEVELS.find((candidate) => candidate === value);
+  if (!level) {
+    throw new Error(
+      `thinking must be one of ${THINKING_LEVELS.join(", ")}, got "${raw}"`,
+    );
+  }
+  return level;
+}
+
 export function parsePiOptions(options: PiOptions): ParsedPiOptions {
   const argv: string[] = ["--mode", "json"];
+  const thinking = parseThinkingLevel(options.thinking);
 
   if (options.provider?.trim()) {
     argv.push("--provider", options.provider.trim());
@@ -96,34 +139,34 @@ export function parsePiOptions(options: PiOptions): ParsedPiOptions {
   if (options.model?.trim()) {
     argv.push("--model", options.model.trim());
   }
+  argv.push("--thinking", thinking);
   if (options.noTools) {
     argv.push("--no-tools");
   } else {
     const allowed = splitList(options.allowedTools);
     if (allowed.length > 0) argv.push("--tools", allowed.join(","));
     const disallowed = splitList(options.disallowedTools);
-    if (disallowed.length > 0) argv.push("--exclude-tools", disallowed.join(","));
+    if (disallowed.length > 0)
+      argv.push("--exclude-tools", disallowed.join(","));
   }
   if (options.systemPrompt?.trim()) {
     argv.push("--system-prompt", options.systemPrompt.trim());
   }
   if (options.appendSystemPrompt?.trim()) {
     const value = options.appendSystemPrompt.trim();
-    argv.push(
-      "--append-system-prompt",
-      existsSync(value) ? value : value,
-    );
+    argv.push("--append-system-prompt", existsSync(value) ? value : value);
   }
   // Project trust only when the caller decided the content is trusted.
   argv.push(options.approveProject ? "--approve" : "--no-approve");
 
   argv.push(...parseExtraArgs(options.piArgs));
 
+  const maxTurns = parseMaxTurns(options.maxTurns);
+
   return {
     argv,
-    ...(parseMaxTurns(options.maxTurns) !== undefined
-      ? { maxTurns: parseMaxTurns(options.maxTurns) }
-      : {}),
+    thinking,
+    ...(maxTurns !== undefined ? { maxTurns } : {}),
     showFullOutput: options.showFullOutput === "true",
   };
 }

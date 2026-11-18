@@ -41,6 +41,10 @@ export type PiProviderConfig = {
   api?: string;
   /** Agent directory override; defaults to PI_CODING_AGENT_DIR or ~/.pi/agent. */
   agentDir?: string;
+  /** Thinking level for this run; `off` keeps reasoning parameters off the wire. */
+  thinking?: string;
+  /** Override the thinking wire format instead of deriving it from the model. */
+  thinkingFormat?: string;
 };
 
 export type ResolvedProvider = {
@@ -90,8 +94,14 @@ export function buildModelsJson(config: {
   api: string;
   model: string;
   apiKeyEnvVar?: string;
+  /** Declare that the model accepts thinking controls. */
+  reasoning?: boolean;
+  /** How the thinking level is encoded on the wire, e.g. `deepseek`. */
+  thinkingFormat?: string;
 }): Record<string, unknown> {
   const modelEntry: Record<string, unknown> = { id: config.model };
+  if (config.reasoning) modelEntry.reasoning = true;
+  if (config.thinkingFormat) modelEntry.thinkingFormat = config.thinkingFormat;
   return {
     $schema: "https://pi.dev/schemas/models.schema.json",
     providers: {
@@ -105,6 +115,23 @@ export function buildModelsJson(config: {
       },
     },
   };
+}
+
+/**
+ * Map a model onto the thinking wire format Pi has to use. Pi auto-detects the
+ * format from known provider URLs; a gateway base URL is unknown, so the model
+ * or provider name is the only signal left.
+ */
+export function resolveThinkingFormat(config: {
+  provider?: string;
+  model?: string;
+  baseUrl?: string;
+}): string | undefined {
+  const haystack = [config.provider, config.model, config.baseUrl]
+    .filter(Boolean)
+    .join(" ");
+  if (/deepseek/i.test(haystack)) return "deepseek";
+  return undefined;
 }
 
 export type BootstrapResult = {
@@ -136,14 +163,21 @@ export async function bootstrapPiProvider(
   }
 
   const modelsPath = join(agentDir, "models.json");
+  // A custom gateway is not in Pi's catalog, so the thinking wire format has to
+  // be declared: Pi only auto-detects it from URLs it already knows.
+  const thinkingFormat =
+    config.thinkingFormat?.trim() || resolveThinkingFormat(resolved);
+  // `thinking: off` must not claim the model supports thinking, or Pi would send
+  // reasoning parameters to an endpoint that was asked to stay quiet.
+  const reasoning = (config.thinking ?? "high") !== "off";
   const desired = buildModelsJson({
     provider: resolved.provider,
     baseUrl: resolved.baseUrl!,
     api: resolved.api,
     model: resolved.model ?? resolved.provider,
-    ...(config.apiKey?.trim()
-      ? { apiKeyEnvVar: PI_PROVIDER_API_KEY_ENV }
-      : {}),
+    reasoning,
+    ...(thinkingFormat ? { thinkingFormat } : {}),
+    ...(config.apiKey?.trim() ? { apiKeyEnvVar: PI_PROVIDER_API_KEY_ENV } : {}),
   });
 
   let merged = desired;

@@ -40,6 +40,7 @@ async function run() {
       apiKey: providerInput.apiKey,
       api: providerInput.apiStyle,
       agentDir: providerInput.agentDir,
+      thinking: process.env.INPUT_THINKING,
     });
 
     await setupPiSettings(process.env.INPUT_SETTINGS, provider.agentDir);
@@ -54,6 +55,7 @@ async function run() {
       piArgs: process.env.INPUT_PI_ARGS,
       provider: providerInput.provider,
       model: providerInput.model,
+      thinking: process.env.INPUT_THINKING,
       allowedTools: process.env.INPUT_ALLOWED_TOOLS,
       disallowedTools: process.env.INPUT_DISALLOWED_TOOLS,
       maxTurns: process.env.INPUT_MAX_TURNS,

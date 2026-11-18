@@ -7,12 +7,12 @@ action writes that file when it needs to.
 
 Decision table:
 
-| Your endpoint | Inputs | What the action does |
-| --- | --- | --- |
-| In Pi's catalog (Anthropic, OpenAI, Google, DeepSeek, …) | `provider` + `model`, with `api_key` or the provider's env var | Passes `--provider` / `--model`; no file needed |
-| The same provider behind a gateway or proxy | the above plus `base_url` | Writes `models.json` with your base URL; the provider's other models stay listed |
-| Any other OpenAI-compatible endpoint | `provider` + `base_url` + `model` + `api_key` | Writes `models.json` with your base URL |
-| Local model server on the runner | `provider: ollama`, `model`, no key | Writes `models.json`; Pi uses a placeholder key |
+| Your endpoint                                            | Inputs                                                         | What the action does                                                             |
+| -------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| In Pi's catalog (Anthropic, OpenAI, Google, DeepSeek, …) | `provider` + `model`, with `api_key` or the provider's env var | Passes `--provider` / `--model`; no file needed                                  |
+| The same provider behind a gateway or proxy              | the above plus `base_url`                                      | Writes `models.json` with your base URL; the provider's other models stay listed |
+| Any other OpenAI-compatible endpoint                     | `provider` + `base_url` + `model` + `api_key`                  | Writes `models.json` with your base URL                                          |
+| Local model server on the runner                         | `provider: ollama`, `model`, no key                            | Writes `models.json`; Pi uses a placeholder key                                  |
 
 What lands on disk (`api_style` defaults to `openai-completions`):
 
@@ -38,13 +38,13 @@ can carry extra providers.
 `agent_dir` (or `PI_CODING_AGENT_DIR`) controls where Pi keeps its state. Default
 `~/.pi/agent`:
 
-| Path | Contents |
-| --- | --- |
-| `settings.json` | Pi settings, written from the `settings` input |
-| `models.json` | Compatible endpoints (above) |
-| `mcp.json` | MCP servers, written by the action each run |
-| `sessions/` | Session transcripts, the thing `session_id` refers to |
-| `auth.json` | Only present if you cache credentials yourself |
+| Path            | Contents                                              |
+| --------------- | ----------------------------------------------------- |
+| `settings.json` | Pi settings, written from the `settings` input        |
+| `models.json`   | Compatible endpoints (above)                          |
+| `mcp.json`      | MCP servers, written by the action each run           |
+| `sessions/`     | Session transcripts, the thing `session_id` refers to |
+| `auth.json`     | Only present if you cache credentials yourself        |
 
 Point `agent_dir` at a cached path to keep sessions across runs.
 
@@ -52,12 +52,13 @@ Point `agent_dir` at a cached path to keep sessions across runs.
 
 Pi's built-in tools: `read`, `grep`, `find`, `ls`, `bash`, `edit`, `write`.
 
-| Input | Effect |
-| --- | --- |
-| `no_tools: "true"` | `--no-tools`. The agent can only reason over the prompt. |
-| `allowed_tools` | `--tools a,b,c`. Only these exist for the run. |
-| `disallowed_tools` | `--exclude-tools a,b`. Everything else stays. |
-| `max_turns` | The action kills `pi` after this many `turn_end` records. Empty, `0` or a negative value means no limit. |
+| Input              | Effect                                                                                                                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no_tools: "true"` | `--no-tools`. The agent can only reason over the prompt.                                                                                                                                                                                              |
+| `allowed_tools`    | `--tools a,b,c`. Only these exist for the run.                                                                                                                                                                                                        |
+| `disallowed_tools` | `--exclude-tools a,b`. Everything else stays.                                                                                                                                                                                                         |
+| `max_turns`        | The action kills `pi` after this many `turn_end` records. Empty, `0` or a negative value means no limit.                                                                                                                                              |
+| `thinking`         | `--thinking <level>`. `off`, `minimal`, `low`, `medium`, `high` (default), `xhigh` or `max`. The endpoint's `models.json` entry declares `reasoning: true` so Pi can send it, and the level appears in parentheses after the model in the run footer. |
 
 `no_tools` wins over the other two. Deny rules are tool-level, not
 per-command — `bash` is all or nothing. That is why untrusted pull requests lose
@@ -67,12 +68,12 @@ per-command — `bash` is all or nothing. That is why untrusted pull requests lo
 
 The action publishes GitHub MCP servers into `<agent-dir>/mcp.json` every run:
 
-| Server | Tools | When |
-| --- | --- | --- |
-| `github_comment` | update the tracking comment | tag mode, or agent mode that asks for the tools |
-| `github_inline_comment` | review comments on a PR | PR runs with the GitHub MCP tools allowed |
-| `github_ci` | read workflow runs and logs | when `additional_permissions` grants `actions: read` |
-| `github_file_ops` | commit files through the API | when `use_commit_signing` is on |
+| Server                  | Tools                        | When                                                 |
+| ----------------------- | ---------------------------- | ---------------------------------------------------- |
+| `github_comment`        | update the tracking comment  | tag mode, or agent mode that asks for the tools      |
+| `github_inline_comment` | review comments on a PR      | PR runs with the GitHub MCP tools allowed            |
+| `github_ci`             | read workflow runs and logs  | when `additional_permissions` grants `actions: read` |
+| `github_file_ops`       | commit files through the API | when `use_commit_signing` is on                      |
 
 They appear to the model as `mcp__<server>__<tool>`, the same naming Pi uses.
 Because the format is Claude-compatible, you can add your own servers by putting
@@ -85,7 +86,12 @@ an `mcpServers` document in the agent directory before this action runs:
     {"mcpServers":{"docs":{"command":"npx","args":["-y","my-docs-mcp"]}}}
     JSON
 - uses: Tioit-Wang/pi-agent-action@v1
-  with: { provider: deepseek, model: deepseek-chat, api_key: "${{ secrets.DEEPSEEK_API_KEY }}" }
+  with:
+    {
+      provider: deepseek,
+      model: deepseek-chat,
+      api_key: "${{ secrets.DEEPSEEK_API_KEY }}",
+    }
 ```
 
 Entries the action defines win over a pre-existing entry with the same name;
@@ -96,9 +102,9 @@ A project-level `.pi/mcp.json` is only read when `trust_project_files: "true"`.
 
 ## System prompts
 
-| Input | Flag |
-| --- | --- |
-| `system_prompt` | `--system-prompt`, replaces Pi's prompt |
+| Input                  | Flag                                          |
+| ---------------------- | --------------------------------------------- |
+| `system_prompt`        | `--system-prompt`, replaces Pi's prompt       |
 | `append_system_prompt` | `--append-system-prompt`, text or a file path |
 
 Repository instructions are separate: `AGENTS.md` / `CLAUDE.md` are discovered

@@ -50,7 +50,6 @@ A structured answer:
     STRUCTURED_OUTPUT: ${{ steps.pi.outputs.structured_output }}
 ```
 
-
 ## How it runs
 
 `pi --mode json <prompt>` is spawned once. Its stdout is a strict JSONL event
@@ -79,37 +78,38 @@ plaintext.
 
 ## Inputs
 
-| Input                    | Description                                                                                                 | Required | Default       |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------- | -------- | ------------- |
-| `prompt`                 | The prompt to send to Pi                                                                                    | No\*     | `''`          |
-| `prompt_file`            | Path to a file containing the prompt to send to Pi                                                          | No\*     | `''`          |
-| `settings`               | Pi settings as a JSON string or the path to a settings JSON file                                            | No       | `''`          |
-| `pi_args`                | Additional arguments passed to the Pi CLI                                                                   | No       | `''`          |
-| `json_schema`            | JSON Schema the final answer must conform to; appended to the prompt                                        | No       | `''`          |
-| `provider`               | Pi provider id, e.g. `deepseek`                                                                             | No       | `''`          |
-| `model`                  | Model id or pattern, e.g. `deepseek-chat`                                                                   | No\*     | `''`          |
-| `api_key`                | API key for the provider; exported as `PI_PROVIDER_API_KEY`                                                 | No       | `''`          |
-| `base_url`               | Base URL for an OpenAI-compatible endpoint; written to `models.json`                                        | No       | `''`          |
-| `api_style`              | Wire protocol for the endpoint                                                                              | No       | `'openai-completions'` |
-| `agent_dir`              | Pi agent directory (sessions, settings, models, auth)                                                       | No       | `~/.pi/agent` |
-| `allowed_tools`          | Comma-separated allowlist of Pi tools                                                                       | No       | `''`          |
-| `disallowed_tools`       | Comma-separated denylist of Pi tools                                                                        | No       | `''`          |
-| `no_tools`               | Run Pi with no tools at all                                                                                 | No       | `'false'`     |
-| `max_turns`              | Abort when Pi exceeds this many assistant turns (enforced by the action)                                    | No       | `''`          |
-| `system_prompt`          | Replace Pi's default system prompt                                                                          | No       | `''`          |
-| `append_system_prompt`   | Append text (or a file path) to Pi's system prompt                                                          | No       | `''`          |
-| `trust_project_files`    | Trust project-local `.pi/` configuration for this run                                                       | No       | `'false'`     |
-| `path_to_pi_executable`  | Path to a Pi executable; skips the automatic install                                                        | No       | `''`          |
-| `path_to_bun_executable` | Path to a Bun executable; skips the automatic install                                                       | No       | `''`          |
-| `show_full_output`       | Log every event instead of a sanitized summary (⚠️ may include repository content)                          | No       | `'false'`     |
+| Input                    | Description                                                                                                                            | Required | Default                |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------------- |
+| `prompt`                 | The prompt to send to Pi                                                                                                               | No\*     | `''`                   |
+| `prompt_file`            | Path to a file containing the prompt to send to Pi                                                                                     | No\*     | `''`                   |
+| `settings`               | Pi settings as a JSON string or the path to a settings JSON file                                                                       | No       | `''`                   |
+| `pi_args`                | Additional arguments passed to the Pi CLI                                                                                              | No       | `''`                   |
+| `json_schema`            | JSON Schema the final answer must conform to; appended to the prompt                                                                   | No       | `''`                   |
+| `provider`               | Pi provider id, e.g. `deepseek`                                                                                                        | No       | `''`                   |
+| `model`                  | Model id or pattern, e.g. `deepseek-chat`                                                                                              | No\*     | `''`                   |
+| `thinking`               | Thinking level: `off`, `minimal`, `low`, `medium`, `high`, `xhigh` or `max`. Printed in parentheses after the model in the run footer. | No       | `high`                 |
+| `api_key`                | API key for the provider; exported as `PI_PROVIDER_API_KEY`                                                                            | No       | `''`                   |
+| `base_url`               | Base URL for an OpenAI-compatible endpoint; written to `models.json`                                                                   | No       | `''`                   |
+| `api_style`              | Wire protocol for the endpoint                                                                                                         | No       | `'openai-completions'` |
+| `agent_dir`              | Pi agent directory (sessions, settings, models, auth)                                                                                  | No       | `~/.pi/agent`          |
+| `allowed_tools`          | Comma-separated allowlist of Pi tools                                                                                                  | No       | `''`                   |
+| `disallowed_tools`       | Comma-separated denylist of Pi tools                                                                                                   | No       | `''`                   |
+| `no_tools`               | Run Pi with no tools at all                                                                                                            | No       | `'false'`              |
+| `max_turns`              | Abort when Pi exceeds this many assistant turns (enforced by the action)                                                               | No       | `''`                   |
+| `system_prompt`          | Replace Pi's default system prompt                                                                                                     | No       | `''`                   |
+| `append_system_prompt`   | Append text (or a file path) to Pi's system prompt                                                                                     | No       | `''`                   |
+| `trust_project_files`    | Trust project-local `.pi/` configuration for this run                                                                                  | No       | `'false'`              |
+| `path_to_pi_executable`  | Path to a Pi executable; skips the automatic install                                                                                   | No       | `''`                   |
+| `path_to_bun_executable` | Path to a Bun executable; skips the automatic install                                                                                  | No       | `''`                   |
+| `show_full_output`       | Log every event instead of a sanitized summary (⚠️ may include repository content)                                                     | No       | `'false'`              |
 
 \* One of `prompt` or `prompt_file` is required.
 
 ## Outputs
 
-| Output              | Description                                                          |
-| ------------------- | -------------------------------------------------------------------- |
-| `conclusion`        | Execution status of the Pi agent ('success' or 'failure')            |
+| Output              | Description                                                           |
+| ------------------- | --------------------------------------------------------------------- |
+| `conclusion`        | Execution status of the Pi agent ('success' or 'failure')             |
 | `execution_file`    | Path to the JSON file holding the Pi event stream                     |
 | `session_id`        | Pi session id, usable with `--session` to continue the conversation   |
 | `structured_output` | JSON string with the structured fields extracted from the final reply |

@@ -72,6 +72,8 @@ export type UsageFooterInput = {
   actionUrl?: string;
   provider?: string;
   model?: string;
+  /** Thinking level the run used, shown in parentheses after the model. */
+  thinking?: string;
   durationMs?: number;
   turns?: number;
   /** Input tokens that missed the prompt cache. */
@@ -232,7 +234,10 @@ export function buildUsageFooter(input: UsageFooterInput): string | undefined {
   details.push(
     `- Executor: [pi-agent-action](${input.actionUrl ?? PI_ACTION_URL})`,
   );
-  if (model) details.push(`- Model: \`${model}\``);
+  if (model) {
+    const thinking = input.thinking?.trim();
+    details.push(`- Model: \`${model}\`${thinking ? ` (${thinking})` : ""}`);
+  }
 
   if (input.durationMs !== undefined) {
     const turns =

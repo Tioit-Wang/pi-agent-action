@@ -71,6 +71,10 @@ inputs:
     description: "Model id or pattern, e.g. deepseek-chat or anthropic/claude-sonnet-5."
     required: false
     default: ""
+  thinking:
+    description: "Thinking level for the run: off, minimal, low, medium, high, xhigh or max. Shown in parentheses after the model in the run footer."
+    required: false
+    default: "high"
   api_key:
     description: "API key for the selected provider. Passed to Pi through the environment and never written to disk."
     required: false
@@ -313,6 +317,7 @@ runs:
         INPUT_DISALLOWED_TOOLS: ${{ inputs.disallowed_tools }}
         INPUT_NO_TOOLS: ${{ inputs.no_tools }}
         INPUT_MAX_TURNS: ${{ inputs.max_turns }}
+        INPUT_THINKING: ${{ inputs.thinking }}
         INPUT_SYSTEM_PROMPT: ${{ inputs.system_prompt }}
         INPUT_APPEND_SYSTEM_PROMPT: ${{ inputs.append_system_prompt }}
         INPUT_TRUST_PROJECT_FILES: ${{ inputs.trust_project_files }}
