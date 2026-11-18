@@ -201,12 +201,18 @@ describe("runTriage", () => {
     );
 
     expect(result.duplicateOf).toBe(12);
+
     expect(result.labelsApplied).toEqual(["bug", "P2", "duplicate"]);
 
     const added = calls.find((call) => call.method === "addLabels");
     expect(added?.args["labels"]).toContain("duplicate");
 
     const comments = calls.filter((call) => call.method === "createComment");
+
+    // A duplicated marker still passes the idempotency check, so nothing would
+    // catch the extra copy: assert each body carries exactly one.
+    expect(String(comments[0]?.args["body"]).split("<!-- pi-triage:duplicate-of=12 -->")).toHaveLength(2);
+    expect(String(comments[1]?.args["body"]).split("<!-- pi-triage:raised-again=7 -->")).toHaveLength(2);
     expect(comments).toHaveLength(2);
     expect(comments[0]?.args["issue_number"]).toBe(7);
     expect(String(comments[0]?.args["body"])).toContain("Possibly a duplicate of #12");

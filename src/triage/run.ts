@@ -287,7 +287,8 @@ export async function runTriage(input: TriageRunInput): Promise<TriageRunResult>
         owner: input.owner,
         repo: input.repo,
         issue_number: input.issueNumber,
-        body: `${onNewIssue}\n\n${duplicateMarker(duplicateOf)}`,
+        // The template already closes with its idempotency marker.
+        body: onNewIssue,
       });
     }
 
@@ -310,7 +311,7 @@ export async function runTriage(input: TriageRunInput): Promise<TriageRunResult>
           owner: input.owner,
           repo: input.repo,
           issue_number: duplicateOf,
-          body: `${onOriginal}\n\n${marker}`,
+          body: onOriginal,
         });
       }
     } else {
